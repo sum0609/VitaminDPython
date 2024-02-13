@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BNF_DESCRIPTION Visualization</title>
+    <!-- Include mpld3 JavaScript library for rendering the plot -->
+    {{ plot_html | safe }}
+</head>
+<body>
+    <h1>BNF_DESCRIPTION Visualization</h1>
+    <p>Count of BNF_DESCRIPTION for All Years</p>
+</body>
+</html>
+<thead>
+    <tr>
+        <th>BNF DESCRIPTION</th>
+        <th>BNF CHAPTER PLUS</th>
+        <th>MEDICATION TYPE</th>
+        <th>MEDICATION </th>
+        <th>DOSAGE </th>
+        <th>YEAR</th>
+        <th>PRACTICE NAME </th>
+        <th>PRACTICE CODE</th>
+        
+    </tr>
+</thead>
+
+<tbody>
+    {% for prescription in all_data %}
+        <tr>
+            <td>
+                {% if prescription['BNF_DESCRIPTION'] is none %}
+                    N/A
+                {% else %}
+                    {% if prescription['BNF_DESCRIPTION'] == '' %}
+                        Empty
+                    {% else %}
+                        {{ prescription['BNF_DESCRIPTION']|string|default('') }}
+                    {% endif %}
+                {% endif %}
+            </td>
+            
+            <td>
+                {% if prescription['BNF_CHAPTER_PLUS_CODE'] is none %}
+                    N/A
+                {% else %}
+                    {% if prescription['BNF_CHAPTER_PLUS_CODE'] == '' %}
+                        Empty
+                    {% else %}
+                        {{ prescription['BNF_CHAPTER_PLUS_CODE']|string|default('') }}
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if prescription['medication_type'] is none %}
+                    N/A
+                {% else %}
+                    {% if prescription['medication_type'] == '' %}
+                        Empty
+                    {% else %}
+                        {{ prescription['medication_type']|string|default('') }}
+                    {% endif %}
+                {% endif %}
+            </td>
+
+            <td>
+                {% if prescription['medication'] is none %}
+                    N/A
+                {% else %}
+                    {% if prescription['medication'] == '' %}
+                        Empty
+                    {% else %}
+                        {{ prescription['medication']|string|default('') }}
+                    {% endif %}
+                {% endif %}
+            </td>
+
+            <td>
+                {% if prescription['dosage'] is none %}
+                    N/A
+                {% else %}
+                    {% if prescription['dosage'] == '' %}
+                        Empty
+                    {% else %}
+                        {{ prescription['dosage']|string|default('') }}
+                    {% endif %}
+                {% endif %}
+            </td>
+
+            <td>
+                {% if prescription['year'] is none %}
+                    N/A
+                {% else %}
+                    {% if prescription['year'] == '' %}
+                        Empty
+                    {% else %}
+                        {{ prescription['year']|string|default('') }}
+                    {% endif %}
+                {% endif %}
+            </td>
+
+            <td>
+                {% if prescription['PRACTICE_NAME'] is none %}
+                    N/A
+                {% else %}
+                    {% if prescription['PRACTICE_NAME'] == '' %}
+                        Empty
+                    {% else %}
+                        {{ prescription['PRACTICE_NAME']|string|default('') }}
+                    {% endif %}
+                {% endif %}
+            </td>
+
+            <td>
+                {% if prescription['PRACTICE_CODE'] is none %}
+                    N/A
+                {% else %}
+                    {% if prescription['PRACTICE_CODE'] == '' %}
+                        Empty
+                    {% else %}
+                        {{ prescription['PRACTICE_CODE']|string|default('') }}
+                    {% endif %}
+                {% endif %}
+            </td>
+            
+            
+           
+        </tr>
+    {% endfor %}
+</tbody>

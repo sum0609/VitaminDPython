@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHS Prescriptions Dashboard</title>
+    <link href="https://unpkg.com/cesium@1.82/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <script src="https://unpkg.com/cesium@1.82/Build/Cesium/Cesium.js"></script>
+    
+   <!-- Bootstrap 5 CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css">
+<!-- Data Table CSS -->
+<link rel='stylesheet' href='https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css'>
+<!-- Font Awesome CSS -->
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css'>
+    
+
+    <!-- jQuery -->
+<script src='https://code.jquery.com/jquery-3.7.0.js'></script>
+<!-- Data Table JS -->
+<script src='https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js'></script>
+<script src='https://cdn.datatables.net/responsive/2.1.0/js/dataTables.responsive.min.js'></script>
+<script src='https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js'></script>
+    <style>
+        body{
+            font-size:13px;
+        }
+        .header-container {
+            background: #005eb8;
+            color: #fff;
+        }
+        .form-control{
+            font-size: 13px;
+        }
+        .pagination li a {
+            font-size: 11px;
+        }
+        .page-link:focus{
+            box-shadow: none;
+        }
+        .sidebar form label{
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+
+    #loading-message {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.8);
+        justify-content: center;
+        align-items: center;
+        z-index: 999;
+      }
+  
+      #loading-text {
+        font-size: 24px;
+      }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            
+            <div class="header-container mb-4 p-3">
+                <h1>NHS Prescriptions Dashboard</h1>
+                <h2>Different BNF Descriptions</h2>   
+            </div>
+
+            <div class="col-3">
+                <aside class="sidebar">
+                    <h5>Sidebar Title</h5>
+
+                    <form>
+                        <div class="mb-3">
+                            <label for="mySelect" class="form-label">Select any</label>
+                            <select id="mySelect"  class="form-select" aria-label="Default select example">
+                                <option >Select</option>
+                                <option selected value="1">All Records</option>
+                                <option value="2">Group by BNF_DESCRIPTION</option>
+                                <option value="3">Group by BNF_CHAPTER_PLUS_CODE</option>
+                                <option value="4">Group by MEDICATION NAME</option>
+                                <option value="5">Group by MEDICATION TYPE</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="slcYear" class="form-label">Select Year</label>
+                            <select id="slcYear"  class="form-select" aria-label="Default select example">
+                                <option value="0" selected>Select</option>
+                                <option>2023</option>
+                                <option>2022</option>
+                                <option>2021</option>
+                                <option>2020</option>
+                                <option>2019</option>
+                                <option>2018</option>
+                                <option>2017</option>
+                                <option>2016</option>
+                                <option>2015</option>
+                                <option>2014</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="slcMonth" class="form-label">Select Month</label>
+                            <select id="slcMonth"  class="form-select" aria-label="Default select example">
+                                <option value="0" selected>Select</option>
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="exampleFormControlTextarea1" class="form-label">Example textarea</label>
+                            <textarea class="form-control" id="exampleFormControlTextarea1" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </form>
+                </aside>
+            </div>
+            <div class="col-9">
+                <!-- Add a form for selecting page size -->
+                <form id="pageSizeForm">
+                    <label for="pageSizeSelect">Rows per page:</label>
+                    <select id="pageSizeSelect" name="page_size" onchange="loadForm(1)">
+                        <option value="10" {% if request.args.get('page_size', 10) == '10' %}selected{% endif %}>10</option>
+                        <option value="20" {% if request.args.get('page_size', 10) == '20' %}selected{% endif %}>20</option>
+                        <option value="30" {% if request.args.get('page_size', 10) == '30' %}selected{% endif %}>30</option>
+                        <!-- Add more options as needed -->
+                    </select>
+                </form>
+                <div class="pagination">
+                </div>
+                <table id="dataTable" class="table table-striped table-bordered mb-3" style="width:100%">
+
+                   <thead>
+                        <tr>
+                            <th>YEAR</th>
+                            <th>MONTH</th>
+                            <th>PRACTICE NAME </th>
+                            <th>PRACTICE CODE</th>
+                            <th>POSTCODE</th>
+                            <th>BNF DESCRIPTION</th>
+                            <th>BNF CHAPTER PLUS</th>
+                            <th>MEDICATION TYPE</th>
+                            <th>MEDICATION </th>
+                            <th>DOSAGE </th>
+                            <th>QUANTITY </th>
+                            <th>ITEMS </th>
+                            <th>TOTAL QUANTITY </th>
+                            <th>NIC </th>
+                            <th>ACTUAL COST </th>
+                            
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for prescription in all_data %}
+                            <tr>
+
+                                <td>
+                                    {% if prescription['year'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['year'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['year']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['month'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['month'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['month']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['PRACTICE_NAME'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['PRACTICE_NAME'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['PRACTICE_NAME']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['PRACTICE_CODE'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['PRACTICE_CODE'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['PRACTICE_CODE']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                
+                                <td>
+                                    {% if prescription['POSTCODE'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['POSTCODE'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['POSTCODE']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['BNF_DESCRIPTION'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['BNF_DESCRIPTION'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['BNF_DESCRIPTION']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                
+                                <td>
+                                    {% if prescription['BNF_CHAPTER_PLUS_CODE'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['BNF_CHAPTER_PLUS_CODE'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['BNF_CHAPTER_PLUS_CODE']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if prescription['medication_type'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['medication_type'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['medication_type']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['medication'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['medication'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['medication']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['dosage'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['dosage'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['dosage']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['QUANTITY'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['QUANTITY'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['QUANTITY']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['ITEMS'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['ITEMS'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['ITEMS']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['TOTAL_QUANTITY'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['TOTAL_QUANTITY'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['TOTAL_QUANTITY']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['NIC'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['NIC'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['NIC']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if prescription['ACTUAL_COST'] is none %}
+                                        N/A
+                                    {% else %}
+                                        {% if prescription['ACTUAL_COST'] == '' %}
+                                            Empty
+                                        {% else %}
+                                            {{ prescription['ACTUAL_COST']|string|default('') }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div id="cesiumContainer" class="mb-4 mt-4" style="width: 100%; height: 500px;"></div>
+
+            </div>
+        </div>
+    </div>
+    <!-- HTML/CSS for loading message or spinner -->
+    <div id="loading-message">
+        <p id="loading-text">Loading...</p>
+      </div>
+    <script>//for pagination
+        // Assuming you have a container element for the pagination
+        var paginationContainer = document.querySelector('.pagination');
+
+        // Function to create pagination elements
+        function createPagination(response) {
+            // Clear existing content
+            paginationContainer.innerHTML = '';
+
+            // Create and append the Previous page link
+            var prevPageLink = document.createElement('a');
+            prevPageLink.id = 'lnkPrev';
+            // If a previous page exists, set the href to call the navigateToPrevPage() function
+            if (response && response.all_data_param && response.all_data_param.prev_page_number) {
+                prevPageLink.href = "javascript:void(0);"; // Set a placeholder href
+                prevPageLink.addEventListener('click', function () {
+                    loadForm(response.all_data_param.prev_page_number)});
+            } else {
+                prevPageLink.href = '#';
+            }
+            prevPageLink.innerText = response && response.all_data_param && response.all_data_param.prev_page_number ?
+                ' << Previous ' : 'N/A';
+            paginationContainer.appendChild(prevPageLink);
+
+            // Create and append the current page element
+            var currentPageSpan = document.createElement('span');
+            currentPageSpan.id = 'currentPage';
+            currentPageSpan.innerText = response && response.all_data_param ?
+                ' Page ' + response.all_data_param.page_number + ' of ' + response.all_data_param.pages + ' ': 'N/A';
+            paginationContainer.appendChild(currentPageSpan);
+
+            // Create and append the Next page link
+            var nextPageLink = document.createElement('a');
+            nextPageLink.id = 'lnkNext';
+            // If a previous page exists, set the href to call the navigateToNextPage() function
+            if (response && response.all_data_param && response.all_data_param.next_page_number) {
+                nextPageLink.href = "javascript:void(0);"; // Set a placeholder href
+                nextPageLink.addEventListener('click', function () {
+                    loadForm(response.all_data_param.next_page_number)});
+            } else {
+                nextPageLink.href = '#';
+            }
+            nextPageLink.innerText = response && response.all_data_param && response.all_data_param.next_page_number ?
+                ' Next >> ' : 'N/A';
+            paginationContainer.appendChild(nextPageLink);
+        }
+
+        function updatePagination(response) {
+            createPagination(response);
+        }
+
+    </script>
+    <script>//inital load
+        $(document).ready(function() {
+            //loadForm();
+            //$('#mySelect').change(function () {
+                //    var selectedValue = $(this).val();
+                //    console.log("Selected value:", selectedValue);  // Check in the console if this is logged
+                //    $.ajax({
+                //        type: 'GET',
+                //        url: '/update_table',
+                //       data: { selectedValue: selectedValue },
+                //       success: function (response) {
+                //           // Render the table based on the received data
+                //           renderTable(response);
+                //       },
+                //       error: function (error) {
+                //           console.error('Error fetching data:', error);
+                //       }
+                //   });
+                //});
+
+            // Handle form submission
+            $('form').submit(function(event) {
+                // Prevent the default form submission behavior
+                event.preventDefault();
+
+                loadForm(1);
+            });
+        } );
+
+    </script>
+    <script>// loadForm
+        function loadForm(pagenumber){
+            // Get the selected value from the dropdown
+            var selectedValue = $('#mySelect').val();
+            console.log("Selected value:", selectedValue);
+            var selectedYear = $('#slcYear').val();
+            console.log("Selected Year:", selectedYear);
+            var selectedMonth = $('#slcMonth').val();
+            console.log("Selected Month:", selectedMonth);
+            
+            console.log("Selected page:", pagenumber);
+
+            var selectedPageSize = document.getElementById('pageSizeSelect').value;
+            console.log("Selected PageSize:", selectedPageSize);
+            
+            // Check if any selection is made
+            if (selectedValue|| selectedValue === '0') {
+                // Make an AJAX request when the form is submitted
+                $.ajax({
+                    type: 'GET',
+                    url: '/',
+                    data: { 
+                        selectedValue: selectedValue,
+                        selectedYear: selectedYear,
+                        selectedMonth: selectedMonth ,
+                        page_number: pagenumber,
+                        page_size: selectedPageSize
+                    },
+                    beforeSend: function() {
+                        // This function will be called before the request is sent
+                        showLoading();
+                    },
+                    success: function(response) {
+                        // Render the table based on the received data
+                        renderTable(response);
+                        updatePagination(response);
+                    },
+                    error: function(error) {
+                        console.error('Error fetching data:', error);
+                    },
+                    complete: function() {
+                        // This function will be called regardless of success or error
+                        hideLoading();
+                    }
+                });
+            } else {
+                // Handle the case when no selection is made (optional)
+                console.log('No selection made. Skipping AJAX request.');
+                // Hide loading message or spinner after data is loaded
+                hideLoading();
+            }
+        }
+    </script>
+    <script>// Function to render the table dynamically
+        function renderTable(data) {
+            console.log(data.response);  // Inspect the data object
+            
+            if (!data.response || !data.response.columns || !data.response.rows) {
+                console.error('Invalid data structure:', data.response);
+                return;
+            }
+            // Clear existing table content
+            $('#dataTable thead').empty();
+            $('#dataTable tbody').empty();
+
+            // Render headers
+            var headers = '<tr>';
+            for (var i = 0; i < data.response.columns.length; i++) {
+                headers += '<th>' + data.response.columns[i] + '</th>';
+            }
+            headers += '</tr>';
+            $('#dataTable thead').append(headers);
+
+            // Render rows
+            for (var j = 0; j < data.response.rows.length; j++) {
+                var row = '<tr>';
+                for (var k = 0; k < data.response.columns.length; k++) {
+                    row += '<td>';
+                    if (data.response.rows[j][data.response.columns[k]] === null) {
+                        row += 'N/A';
+                    } else if (data.response.rows[j][data.response.columns[k]] === '') {
+                        row += 'Empty';
+                    } else {
+                        row += data.response.rows[j][data.response.columns[k]];
+                    }
+                    row += '</td>';
+                }
+                row += '</tr>';
+                $('#dataTable tbody').append(row);
+            }
+        }
+    </script>
+    <script>// Function to show loading message or spinner
+        function showLoading() {
+            document.getElementById('loading-message').style.display = 'flex';
+        }
+    </script>
+    <script>// Function to hide loading message or spinner
+        function hideLoading() {
+            document.getElementById('loading-message').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
