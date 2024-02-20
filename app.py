@@ -1,10 +1,10 @@
 
 
-import grequests
-import pandas as pd
-import requests
-from io import BytesIO
-import gzip
+#import grequests
+#import pandas as pd
+# import requests
+# from io import BytesIO
+# import gzip
 
 from flask import Flask, render_template, session, jsonify, request
 from pyspark.sql import SparkSession
@@ -20,7 +20,8 @@ app = Flask(__name__)
 app.secret_key = 'vitDSession'
 
 # # Initialize Spark session
-spark = SparkSession.builder.appName("PrescribingAnalysis").config("spark.driver.memory", "4g").config("spark.executor.memory", "8g").getOrCreate()
+# spark = SparkSession.builder.appName("PrescribingAnalysis").config("spark.driver.memory", "4g").config("spark.executor.memory", "8g").getOrCreate()
+spark = SparkSession.builder.appName("PrescribingAnalysis").getOrCreate()
 spark.conf.set("spark.sql.debug.maxToStringFields", -1)
 
 # TO SEPERATE MEDICINE ON THE BASIS OF ITS FORM 

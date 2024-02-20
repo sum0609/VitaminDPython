@@ -1,15 +1,16 @@
-import grequests
+#import grequests
 import pandas as pd
 import requests
-from io import BytesIO
-import gzip
+#from io import BytesIO
+#import gzip
 from functools import reduce
+import json
 
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, concat, lit, expr,DataFrame
 from urllib.parse import quote
-from pyspark.sql import functions as F
+#from pyspark.sql import functions as F
 
 def fetch_and_process_data():
 
@@ -27,7 +28,19 @@ def fetch_and_process_data():
     CHEMICAL_SUBSTANCE_BNF_DESCR = 'Colecalciferol'
     PRACTICE_CODE = ['F83652','F83004','F83033','F83064','F83624','F83012','F83008','Y01066','F83660','F83010','F83063','F83053','F83056','F83034','F83681','F83678','F83021','F83007','F83680','F83015','F83032','F83686','F83666','F83671','F83027','F83002','F83674','F83673','F83045','F83060','F83039','F83664']
 
-    metadata_response = requests.get(f"{base_endpoint}{package_show_method}{dataset_id}").json()
+    # metadata_response = requests.get(f"{base_endpoint}{package_show_method}{dataset_id}").json()
+    metadata_response = requests.get(f"{base_endpoint}{package_show_method}{dataset_id}")
+    # Check if the response contains data
+    if metadata_response.content:
+        try:
+            # Attempt to decode the response as JSON
+            metadata_response = metadata_response.json()
+            # Continue processing the JSON data as needed
+        except json.decoder.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+    else:
+        print("Empty response received.")
+        # Handle the case of an empty response as needed
     
     resources_table = pd.json_normalize(metadata_response['result']['resources'])
     resource_name_list = resources_table[resources_table['name'].str.contains('2014|2015|2016|2017|2018|2019|2020|2021|2022|2023')]['name']

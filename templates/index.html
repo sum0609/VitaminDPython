@@ -7,20 +7,24 @@
     <link href="https://unpkg.com/cesium@1.82/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <script src="https://unpkg.com/cesium@1.82/Build/Cesium/Cesium.js"></script>
     
-   <!-- Bootstrap 5 CSS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css">
-<!-- Data Table CSS -->
-<link rel='stylesheet' href='https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css'>
-<!-- Font Awesome CSS -->
-<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css'>
-    
+    <!-- Bootstrap 5 CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css">
+    <!-- Data Table CSS
+    <link rel='stylesheet' href='https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css'> -->
+    <!-- Font Awesome CSS 
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css'>
+    -->
 
     <!-- jQuery -->
-<script src='https://code.jquery.com/jquery-3.7.0.js'></script>
-<!-- Data Table JS -->
-<script src='https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js'></script>
-<script src='https://cdn.datatables.net/responsive/2.1.0/js/dataTables.responsive.min.js'></script>
-<script src='https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js'></script>
+    <script src='https://code.jquery.com/jquery-3.7.0.js'></script>
+    <!-- Data Table JS -->
+    <script src='https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js'></script>
+    <!--<script src='https://cdn.datatables.net/responsive/2.1.0/js/dataTables.responsive.min.js'></script>
+    <script src='https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js'></script>-->
+
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.99/Build/Cesium/Cesium.js"></script>
+  <script src="https://requirejs.org/docs/release/2.3.5/minified/require.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.99/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
         body{
             font-size:13px;
@@ -28,6 +32,7 @@
         .header-container {
             background: #005eb8;
             color: #fff;
+            margin-bottom: -1rem !important;
         }
         .form-control{
             font-size: 13px;
@@ -44,23 +49,41 @@
         }
 
 
-    #loading-message {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(255, 255, 255, 0.8);
-        justify-content: center;
-        align-items: center;
-        z-index: 999;
-      }
-  
-      #loading-text {
-        font-size: 24px;
-      }
-
+        #loading-message {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+    
+        #loading-text {
+            font-size: 24px;
+        }
+        .panel {
+            padding: 20px 20px 20px 20px;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+            border-top: 1px solid #ddd;
+            border-left: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            min-height: 500px;
+        }
+        .panel-heading {
+            color: #333;
+            background-color: #f5f5f5;
+            border-color: #ddd;
+            padding: 10px 15px;
+            border-bottom: 1px solid transparent;
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -68,294 +91,318 @@
         <div class="row">
             
             <div class="header-container mb-4 p-3">
-                <h1>NHS Prescriptions Dashboard</h1>
-                <h2>Different BNF Descriptions</h2>   
+                <h1>NHS Prescriptions Dashboard - Vitamin D </h1> 
+            </div>
+            <div class="row" style="padding-bottom:10px;">
+                <form class="row g-3">
+                    <div class="col-3">
+                        <label for="mySelect" class="form-label">Select</label>
+                        <select id="mySelect"  class="form-select" aria-label="Default select example">
+                            <option >Select</option>
+                            <option selected value="1">All Records</option>
+                            <option value="2">Group by BNF_DESCRIPTION</option>
+                            <option value="3">Group by BNF_CHAPTER_PLUS_CODE</option>
+                            <option value="4">Group by MEDICATION NAME</option>
+                            <option value="5">Group by MEDICATION TYPE</option>
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <label for="slcYear" class="form-label">Select Year</label>
+                        <select id="slcYear"  class="form-select" aria-label="Default select example">
+                            <option value="0" selected>Select</option>
+                            <option>2023</option>
+                            <option>2022</option>
+                            <option>2021</option>
+                            <option>2020</option>
+                            <option>2019</option>
+                            <option>2018</option>
+                            <option>2017</option>
+                            <option>2016</option>
+                            <option>2015</option>
+                            <option>2014</option>
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <label for="slcMonth" class="form-label">Select Month</label>
+                        <select id="slcMonth"  class="form-select" aria-label="Default select example">
+                            <option value="0" selected>Select</option>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-3">
+                        <label for="exampleFormControlTextbox1" class="form-label">Surgery</label>
+                        <input type="text" class="form-control" id="exampleFormControlTextbox1"></input>
+                    </div>
+                    <div class="col-12 text-end"> <!-- Added text-end class here -->
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </div>
+                </form>
             </div>
 
-            <div class="col-3">
+            <!--<div class="col-3">
                 <aside class="sidebar">
                     <h5>Sidebar Title</h5>
 
-                    <form>
-                        <div class="mb-3">
-                            <label for="mySelect" class="form-label">Select any</label>
-                            <select id="mySelect"  class="form-select" aria-label="Default select example">
-                                <option >Select</option>
-                                <option selected value="1">All Records</option>
-                                <option value="2">Group by BNF_DESCRIPTION</option>
-                                <option value="3">Group by BNF_CHAPTER_PLUS_CODE</option>
-                                <option value="4">Group by MEDICATION NAME</option>
-                                <option value="5">Group by MEDICATION TYPE</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="slcYear" class="form-label">Select Year</label>
-                            <select id="slcYear"  class="form-select" aria-label="Default select example">
-                                <option value="0" selected>Select</option>
-                                <option>2023</option>
-                                <option>2022</option>
-                                <option>2021</option>
-                                <option>2020</option>
-                                <option>2019</option>
-                                <option>2018</option>
-                                <option>2017</option>
-                                <option>2016</option>
-                                <option>2015</option>
-                                <option>2014</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="slcMonth" class="form-label">Select Month</label>
-                            <select id="slcMonth"  class="form-select" aria-label="Default select example">
-                                <option value="0" selected>Select</option>
-                                <option value="1">January</option>
-                                <option value="2">February</option>
-                                <option value="3">March</option>
-                                <option value="4">April</option>
-                                <option value="5">May</option>
-                                <option value="6">June</option>
-                                <option value="7">July</option>
-                                <option value="8">August</option>
-                                <option value="9">September</option>
-                                <option value="10">October</option>
-                                <option value="11">November</option>
-                                <option value="12">December</option>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="exampleFormControlTextarea1" class="form-label">Example textarea</label>
-                            <textarea class="form-control" id="exampleFormControlTextarea1" rows="3"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Search</button>
-                    </form>
                 </aside>
-            </div>
-            <div class="col-9">
-                <!-- Add a form for selecting page size -->
-                <form id="pageSizeForm">
-                    <label for="pageSizeSelect">Rows per page:</label>
-                    <select id="pageSizeSelect" name="page_size" onchange="loadForm(1)">
-                        <option value="10" {% if request.args.get('page_size', 10) == '10' %}selected{% endif %}>10</option>
-                        <option value="20" {% if request.args.get('page_size', 10) == '20' %}selected{% endif %}>20</option>
-                        <option value="30" {% if request.args.get('page_size', 10) == '30' %}selected{% endif %}>30</option>
-                        <!-- Add more options as needed -->
-                    </select>
-                </form>
-                <div class="pagination">
+            </div>-->
+            <div class="row">
+                <!-- Left Column - Scrollable Table -->
+                <div class="panel" >
+                    <div class= "panel-heading" ><h5>Data Explorer</h5></div>
+
+                    <!-- Add a form for selecting page size -->
+                    <form id="pageSizeForm">
+                        <label for="pageSizeSelect">Rows per page:</label>
+                        <select id="pageSizeSelect" name="page_size" onchange="loadForm(1)">
+                            <option value="10" {% if request.args.get('page_size', 10) == '10' %}selected{% endif %}>10</option>
+                            <option value="20" {% if request.args.get('page_size', 10) == '20' %}selected{% endif %}>20</option>
+                            <option value="30" {% if request.args.get('page_size', 10) == '30' %}selected{% endif %}>30</option>
+                            <!-- Add more options as needed -->
+                        </select>
+                    </form>
+                    <div class="pagination">
+                    </div>
+                    <!-- Add a container with a fixed height for scrolling -->
+                    <div class="table-container" style="max-height: 500px; overflow: auto;">
+                            <table id="dataTable" class="table table-striped table-bordered mb-3" style="width:100%">
+                                <thead>
+                                    <tr>
+                                        <th>YEAR</th>
+                                        <th>MONTH</th>
+                                        <th>PRACTICE NAME </th>
+                                        <th>PRACTICE CODE</th>
+                                        <th>POSTCODE</th>
+                                        <th>BNF DESCRIPTION</th>
+                                        <th>BNF CHAPTER PLUS</th>
+                                        <th>MEDICATION TYPE</th>
+                                        <th>MEDICATION </th>
+                                        <th>DOSAGE </th>
+                                        <th>QUANTITY </th>
+                                        <th>ITEMS </th>
+                                        <th>TOTAL QUANTITY </th>
+                                        <th>NIC </th>
+                                        <th>ACTUAL COST </th>
+                                        
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for prescription in all_data %}
+                                        <tr>
+
+                                            <td>
+                                                {% if prescription['year'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['year'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['year']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['month'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['month'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['month']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['PRACTICE_NAME'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['PRACTICE_NAME'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['PRACTICE_NAME']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['PRACTICE_CODE'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['PRACTICE_CODE'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['PRACTICE_CODE']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+                                            
+                                            <td>
+                                                {% if prescription['POSTCODE'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['POSTCODE'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['POSTCODE']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['BNF_DESCRIPTION'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['BNF_DESCRIPTION'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['BNF_DESCRIPTION']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+                                            
+                                            <td>
+                                                {% if prescription['BNF_CHAPTER_PLUS_CODE'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['BNF_CHAPTER_PLUS_CODE'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['BNF_CHAPTER_PLUS_CODE']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if prescription['medication_type'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['medication_type'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['medication_type']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['medication'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['medication'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['medication']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['dosage'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['dosage'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['dosage']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['QUANTITY'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['QUANTITY'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['QUANTITY']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['ITEMS'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['ITEMS'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['ITEMS']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['TOTAL_QUANTITY'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['TOTAL_QUANTITY'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['TOTAL_QUANTITY']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['NIC'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['NIC'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['NIC']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if prescription['ACTUAL_COST'] is none %}
+                                                    N/A
+                                                {% else %}
+                                                    {% if prescription['ACTUAL_COST'] == '' %}
+                                                        Empty
+                                                    {% else %}
+                                                        {{ prescription['ACTUAL_COST']|string|default('') }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                    </div>
                 </div>
-                <table id="dataTable" class="table table-striped table-bordered mb-3" style="width:100%">
-
-                   <thead>
-                        <tr>
-                            <th>YEAR</th>
-                            <th>MONTH</th>
-                            <th>PRACTICE NAME </th>
-                            <th>PRACTICE CODE</th>
-                            <th>POSTCODE</th>
-                            <th>BNF DESCRIPTION</th>
-                            <th>BNF CHAPTER PLUS</th>
-                            <th>MEDICATION TYPE</th>
-                            <th>MEDICATION </th>
-                            <th>DOSAGE </th>
-                            <th>QUANTITY </th>
-                            <th>ITEMS </th>
-                            <th>TOTAL QUANTITY </th>
-                            <th>NIC </th>
-                            <th>ACTUAL COST </th>
-                            
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for prescription in all_data %}
-                            <tr>
-
-                                <td>
-                                    {% if prescription['year'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['year'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['year']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['month'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['month'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['month']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['PRACTICE_NAME'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['PRACTICE_NAME'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['PRACTICE_NAME']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['PRACTICE_CODE'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['PRACTICE_CODE'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['PRACTICE_CODE']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                
-                                <td>
-                                    {% if prescription['POSTCODE'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['POSTCODE'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['POSTCODE']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['BNF_DESCRIPTION'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['BNF_DESCRIPTION'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['BNF_DESCRIPTION']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                
-                                <td>
-                                    {% if prescription['BNF_CHAPTER_PLUS_CODE'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['BNF_CHAPTER_PLUS_CODE'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['BNF_CHAPTER_PLUS_CODE']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if prescription['medication_type'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['medication_type'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['medication_type']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['medication'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['medication'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['medication']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['dosage'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['dosage'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['dosage']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['QUANTITY'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['QUANTITY'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['QUANTITY']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['ITEMS'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['ITEMS'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['ITEMS']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['TOTAL_QUANTITY'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['TOTAL_QUANTITY'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['TOTAL_QUANTITY']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['NIC'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['NIC'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['NIC']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if prescription['ACTUAL_COST'] is none %}
-                                        N/A
-                                    {% else %}
-                                        {% if prescription['ACTUAL_COST'] == '' %}
-                                            Empty
-                                        {% else %}
-                                            {{ prescription['ACTUAL_COST']|string|default('') }}
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-
+            </div>
+            <div class="row">
+                <!-- Right Column - Empty Section for Chart -->
+                <div class="col-md-4 panel" style="min-height: 300px;">
+                    <div class= "panel-heading" ><h5>Chart 1</h5></div>
+                </div>
+                <!-- Left Column - Scrollable Table -->
+                <div class="col-md-4 panel"  style="min-height: 300px;">
+                    <div class= "panel-heading" ><h5>Chart 2</h5></div>
+                </div>
+                <!-- Right Column - Empty Section for Chart -->
+                <div class="col-md-4 panel"  style="min-height: 300px;">
+                    <div class= "panel-heading" ><h5>Chart 3</h5></div>
+                </div>
+            </div>
+            <div class="row">
                 <div id="cesiumContainer" class="mb-4 mt-4" style="width: 100%; height: 500px;"></div>
-
+                <!--<div id="cesiumContainer" class="fullSize"> <div>-->
             </div>
         </div>
     </div>
@@ -417,24 +464,6 @@
     </script>
     <script>//inital load
         $(document).ready(function() {
-            //loadForm();
-            //$('#mySelect').change(function () {
-                //    var selectedValue = $(this).val();
-                //    console.log("Selected value:", selectedValue);  // Check in the console if this is logged
-                //    $.ajax({
-                //        type: 'GET',
-                //        url: '/update_table',
-                //       data: { selectedValue: selectedValue },
-                //       success: function (response) {
-                //           // Render the table based on the received data
-                //           renderTable(response);
-                //       },
-                //       error: function (error) {
-                //           console.error('Error fetching data:', error);
-                //       }
-                //   });
-                //});
-
             // Handle form submission
             $('form').submit(function(event) {
                 // Prevent the default form submission behavior
@@ -547,5 +576,26 @@
             document.getElementById('loading-message').style.display = 'none';
         }
     </script>
+
+
+<script>
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjNjUwMTZmNC1lOGIxLTRlNDUtYjk5ZS0xZGNiOTk3YTU0NTIiLCJpZCI6NzE5OTEsImlhdCI6MTcwMzExNzgwNH0.aFH7fFJ1zHNAXrAfst152hRaueJyhmoZXj-hU067sbM'
+    
+    // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
+    let longitudeString = "longitudeString";
+    let latitudeString = "latitudeString";
+
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      //globe: false,
+      timeline: false,
+      animation: false,
+      skyAtmosphere: new Cesium.SkyAtmosphere(),
+      sceneModePicker: true,
+      baseLayerPicker: true,
+      terrainProvider: new Cesium.CesiumTerrainProvider({
+        url: Cesium.IonResource.fromAssetId(1)
+      })
+    })
+      </script>
 </body>
 </html>
