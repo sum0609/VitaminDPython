@@ -1,4 +1,3 @@
 Flask
-pyspark
 pandas
 requests

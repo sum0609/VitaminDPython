@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "undefined/subscriptions/c0e52aac-7cad-41ab-b421-b55831bf735d/resourceGroups/appsvc_linux_centralus/providers/Microsoft.Web/sites/vitdpythondemo",
+    "appService.deploySubpath": "."
+}

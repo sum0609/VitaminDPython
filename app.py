@@ -1,28 +1,16 @@
-
-
-#import grequests
-#import pandas as pd
-# import requests
-# from io import BytesIO
-# import gzip
-
 from flask import Flask, render_template, session, jsonify, request
-from pyspark.sql import SparkSession
 
-from pyspark.sql.functions import col, udf, concat, lit, split, when, regexp_extract
-from pyspark.sql.types import StructType, StructField, StringType
-from pyspark.sql import functions as F
-from pyspark.sql import Window
-
+import pandas as pd
 from data_processing import fetch_and_process_data
 
 app = Flask(__name__)
 app.secret_key = 'vitDSession'
 
-# # Initialize Spark session
-# spark = SparkSession.builder.appName("PrescribingAnalysis").config("spark.driver.memory", "4g").config("spark.executor.memory", "8g").getOrCreate()
-spark = SparkSession.builder.appName("PrescribingAnalysis").getOrCreate()
-spark.conf.set("spark.sql.debug.maxToStringFields", -1)
+# Fetch and process data
+# prescriptions_df = fetch_and_process_data() 
+
+csv_file_path = "data/nhs.csv"
+prescriptions_df = pd.read_csv(csv_file_path)
 
 # TO SEPERATE MEDICINE ON THE BASIS OF ITS FORM 
 # Define a UDF to categorize medication types based on keywords
@@ -57,38 +45,45 @@ def extract_medication_and_dosage(description):
     if medication.strip():
         dosage = ' '.join(words[len(medication.split()):])
     
-    return (medication.strip(), dosage.strip())
+    # return (medication.strip(), dosage.strip())
+    return pd.Series([medication.strip(), dosage.strip()])
 
-# Create a UDF from the defined function
-extract_udf = F.udf(extract_medication_and_dosage, returnType=StructType([
-    StructField("medication", StringType(), True),
-    StructField("dosage", StringType(), True)
-]))
+# # Create a UDF from the defined function
+# extract_udf = F.udf(extract_medication_and_dosage, returnType=StructType([
+#     StructField("medication", StringType(), True),
+#     StructField("dosage", StringType(), True)
+# ]))
 
-# Call fetch_and_process_data only if 'async_df' is not in the session or is empty
-with app.test_request_context('/'):  # Create a temporary request context
-    if 'prescriptions_df' not in session or session['prescriptions_df'].isEmpty():
-        prescriptions_df = fetch_and_process_data()
-        # Store 'async_df' in the session
-        session['prescriptions_df'] = prescriptions_df
-    else:
-        prescriptions_df = session['prescriptions_df']
-# prescriptions_df = fetch_and_process_data()
+# # Call fetch_and_process_data only if 'async_df' is not in the session or is empty
+# with app.test_request_context('/'):  # Create a temporary request context
+#     if 'prescriptions_df' not in session or session['prescriptions_df'].isEmpty():
+#         prescriptions_df = fetch_and_process_data()
+#         # Store 'async_df' in the session
+#         session['prescriptions_df'] = prescriptions_df
+#     else:
+#         prescriptions_df = session['prescriptions_df']
 
-total_items = prescriptions_df.count()
+# total_items = prescriptions_df.count()
 
-# Create a UDF for Spark FOR MEDICATION TYPE
-udf_categorize_medication_type = udf(categorize_medication_type, StringType())
+# # Create a UDF for Spark FOR MEDICATION TYPE
+# udf_categorize_medication_type = udf(categorize_medication_type, StringType())
 # Apply the UDF to create a new column 'medication_type'
-prescriptions_df = prescriptions_df.withColumn("medication_type", udf_categorize_medication_type(col("BNF_DESCRIPTION")))
+# prescriptions_df = prescriptions_df.withColumn("medication_type", udf_categorize_medication_type(col("BNF_DESCRIPTION")))
+prescriptions_df['medication_type'] = prescriptions_df['BNF_DESCRIPTION'].apply(categorize_medication_type)
 # Extract year from YEAR_MONTH and create a new column "year"
-prescriptions_df = prescriptions_df.withColumn("year", F.year(F.from_unixtime(F.unix_timestamp(F.col("YEAR_MONTH").cast("string"), "yyyyMM"))))
-prescriptions_df = prescriptions_df.withColumn("month", F.month(F.from_unixtime(F.unix_timestamp(F.col("YEAR_MONTH").cast("string"), "yyyyMM"))))
+# prescriptions_df = prescriptions_df.withColumn("year", F.year(F.from_unixtime(F.unix_timestamp(F.col("YEAR_MONTH").cast("string"), "yyyyMM"))))
+# prescriptions_df = prescriptions_df.withColumn("month", F.month(F.from_unixtime(F.unix_timestamp(F.col("YEAR_MONTH").cast("string"), "yyyyMM"))))
+prescriptions_df['YEAR_MONTH'] = pd.to_datetime(prescriptions_df['YEAR_MONTH'], format='%Y%m')
+prescriptions_df['year'] = prescriptions_df['YEAR_MONTH'].dt.year
+prescriptions_df['month'] = prescriptions_df['YEAR_MONTH'].dt.month
 # Apply the UDF to create new columns
-prescriptions_df = prescriptions_df.withColumn("extracted_data", extract_udf("BNF_DESCRIPTION"))
-prescriptions_df = prescriptions_df.withColumn("medication", col("extracted_data.medication"))
-prescriptions_df = prescriptions_df.withColumn("dosage", col("extracted_data.dosage"))
-liquid_rows = prescriptions_df.filter(col("medication_type") == "liquid")
+# prescriptions_df = prescriptions_df.withColumn("extracted_data", extract_udf("BNF_DESCRIPTION"))
+# prescriptions_df = prescriptions_df.withColumn("medication", col("extracted_data.medication"))
+# prescriptions_df = prescriptions_df.withColumn("dosage", col("extracted_data.dosage"))
+prescriptions_df[['medication', 'dosage']] = prescriptions_df['BNF_DESCRIPTION'].apply(extract_medication_and_dosage)
+
+# liquid_rows = prescriptions_df.filter(col("medication_type") == "liquid")
+liquid_rows = prescriptions_df[prescriptions_df['medication_type'] == "liquid"]
 
 def get_all_data(selected_year, selected_month, page_number, page_size=10):
     # Define the base selection of columns
@@ -99,30 +94,41 @@ def get_all_data(selected_year, selected_month, page_number, page_size=10):
     ]
 
     # Define the base query
-    base_query = prescriptions_df.select(*columns_to_select)
+    # base_query = prescriptions_df.select(*columns_to_select)
+    base_query = prescriptions_df.copy()
 
     # Apply filters based on selected_year and selected_month
+    # if selected_year != "0":
+    #     base_query = base_query.filter(
+    #         (col("year") == selected_year)
+    #     )
     if selected_year != "0":
-        base_query = base_query.filter(
-            (col("year") == selected_year)
-        )
+        base_query = base_query[base_query['year'] == int(selected_year)]
 
+
+    # if selected_month != "0":
+    #     base_query = base_query.filter(
+    #         (col("month") == selected_month) 
+    #     )
     if selected_month != "0":
-        base_query = base_query.filter(
-            (col("month") == selected_month) 
-        )
+        base_query = base_query[base_query['month'] == int(selected_month)]
     
     # Define a window specification with partition_column
-    window_spec_all_data = Window.partitionBy("year", "month").orderBy("year", "month", "PRACTICE_NAME", "BNF_DESCRIPTION")
+    # window_spec_all_data = Window.partitionBy("year", "month").orderBy("year", "month", "PRACTICE_NAME", "BNF_DESCRIPTION")
+    window_spec_all_data = ['year', 'month', 'PRACTICE_NAME', 'BNF_DESCRIPTION']
+
 
     # Add a row number to each row based on the window specification
-    base_query = base_query.withColumn("row_number", F.row_number().over(window_spec_all_data))
+    # base_query = base_query.withColumn("row_number", F.row_number().over(window_spec_all_data))
+    base_query['row_number'] = base_query.groupby(window_spec_all_data).cumcount() + 1
 
     # Apply distinct if needed
-    base_query = base_query.distinct()
+    # base_query = base_query.distinct()
+    base_query = base_query.drop_duplicates(subset=columns_to_select)
 
     # Calculate the total number of records
-    total_records = base_query.count()
+    # total_records = base_query.count()
+    total_records = len(base_query)
 
     # Calculate the total pages
     total_pages = (total_records + page_size - 1) // page_size
@@ -131,56 +137,46 @@ def get_all_data(selected_year, selected_month, page_number, page_size=10):
     offset = (page_number - 1) * page_size
 
     # Apply pagination
-    result = base_query.filter(col("row_number").between(offset + 1, offset + page_size)).limit(page_size) 
+    # result = base_query.filter(col("row_number").between(offset + 1, offset + page_size)).limit(page_size) 
+    result = base_query.iloc[offset:offset + page_size]
 
     # Extracting columns and filtered data
     columns = columns_to_select
-    filtered_data = [row.asDict() for row in result.collect()]
+    # filtered_data = [row.asDict() for row in result.collect()]
+    filtered_data = result.to_dict(orient='records')
 
     return columns, filtered_data , total_pages, page_number 
 
 def get_bnf_descriptions(selected_year, selected_month, page_number, page_size=10):
-    
     # Define the base selection of columns
     columns_to_select = [
         "BNF_DESCRIPTION","QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
     ]
 
     # Define the base query
-    base_query = liquid_rows.select(*columns_to_select)
+    base_query = liquid_rows.copy()
 
     # Apply filters based on selected_year and selected_month
     if selected_year != "0":
-        base_query = base_query.filter(
-            (col("year") == selected_year)
-        )
-
+        base_query = base_query[base_query['year'] == int(selected_year)]
     if selected_month != "0":
-        base_query = base_query.filter(
-            (col("month") == selected_month) 
-        )
-
-    # Apply distinct if needed
-    base_query = base_query.groupBy("BNF_DESCRIPTION").agg(
-        F.sum("QUANTITY").alias("sum_quantity"),
-        F.sum("ITEMS").alias("sum_items"),
-        F.sum("TOTAL_QUANTITY").alias("sum_total_quantity"),
-        F.sum("NIC").alias("sum_NIC"),
-        F.sum("ACTUAL_COST").alias("sum_actual_cost"),
-        F.count("*").alias("count")
-    )
-    
-    # Define a window specification with partition_column
-    window_spec_all_data = Window.orderBy("BNF_DESCRIPTION", "sum_items", "count")
-
-    # Add a row number to each row based on the window specification
-    base_query = base_query.withColumn("row_number", F.row_number().over(window_spec_all_data))
-
-    # Apply distinct if needed
-    base_query = base_query.distinct()
+        base_query = base_query[base_query['month'] == int(selected_month)]
+        
+    # Filter out rows with null or undefined values in the 'BNF_DESCRIPTION' column
+    base_query = base_query.groupby('BNF_DESCRIPTION').agg({
+        'QUANTITY': 'sum',
+        'ITEMS': ['sum', 'count'],
+        'TOTAL_QUANTITY': 'sum',
+        'NIC': 'sum',
+        'ACTUAL_COST': 'sum',
+    }).reset_index()
+    # Flatten the MultiIndex columns
+    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    # Rename the columns
+    base_query.columns = ['BNF_DESCRIPTION'] + [f'{col}' for col in base_query.columns[1:]]
 
     # Calculate the total number of records
-    total_records = base_query.count()
+    total_records = len(base_query)
 
     # Calculate the total pages
     total_pages = (total_records + page_size - 1) // page_size
@@ -189,11 +185,11 @@ def get_bnf_descriptions(selected_year, selected_month, page_number, page_size=1
     offset = (page_number - 1) * page_size
     
     # Apply pagination
-    result = base_query.filter(col("row_number").between(offset + 1, offset + page_size)).limit(page_size) 
+    result = base_query.iloc[offset: offset + page_size]
 
     # Extracting columns and filtered data
-    columns = ["BNF_DESCRIPTION", "sum_quantity", "sum_items", "sum_total_quantity","sum_NIC", "sum_actual_cost", "count"]
-    filtered_data = [row.asDict() for row in result.collect()]
+    columns = base_query.columns.tolist()
+    filtered_data = result.to_dict(orient='records')
 
     return columns, filtered_data , total_pages, page_number 
  
@@ -204,40 +200,29 @@ def get_BNF_CHAPTER_PLUS_CODE(selected_year, selected_month, page_number, page_s
     ]
 
     # Define the base query
-    base_query = prescriptions_df.select(*columns_to_select)
+    base_query = prescriptions_df.copy()
 
     # Apply filters based on selected_year and selected_month
     if selected_year != "0":
-        base_query = base_query.filter(
-            (col("year") == selected_year)
-        )
-
+        base_query = base_query[base_query['year'] == int(selected_year)]
     if selected_month != "0":
-        base_query = base_query.filter(
-            (col("month") == selected_month) 
-        )
-
-    # Apply distinct if needed
-    base_query = base_query.groupBy("BNF_CHAPTER_PLUS_CODE","medication_type").agg(
-        F.sum("QUANTITY").alias("sum_quantity"),
-        F.sum("ITEMS").alias("sum_items"),
-        F.sum("TOTAL_QUANTITY").alias("sum_total_quantity"),
-        F.sum("NIC").alias("sum_NIC"),
-        F.sum("ACTUAL_COST").alias("sum_actual_cost"),
-        F.count("*").alias("count")
-    )
+        base_query = base_query[base_query['month'] == int(selected_month)]
     
-    # Define a window specification with partition_column
-    window_spec_all_data = Window.orderBy("BNF_CHAPTER_PLUS_CODE","medication_type", "sum_items", "count")
-
-    # Add a row number to each row based on the window specification
-    base_query = base_query.withColumn("row_number", F.row_number().over(window_spec_all_data))
-
     # Apply distinct if needed
-    base_query = base_query.distinct()
+    base_query = base_query.groupby('BNF_CHAPTER_PLUS_CODE').agg({
+        'QUANTITY': 'sum',
+        'ITEMS': ['sum', 'count'],
+        'TOTAL_QUANTITY': 'sum',
+        'NIC': 'sum',
+        'ACTUAL_COST': 'sum',
+    }).reset_index()
+    # Flatten the MultiIndex columns
+    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    # Rename the columns
+    base_query.columns = ['BNF_CHAPTER_PLUS_CODE'] + [f'{col}' for col in base_query.columns[1:]]
 
     # Calculate the total number of records
-    total_records = base_query.count()
+    total_records = len(base_query)
 
     # Calculate the total pages
     total_pages = (total_records + page_size - 1) // page_size
@@ -246,11 +231,11 @@ def get_BNF_CHAPTER_PLUS_CODE(selected_year, selected_month, page_number, page_s
     offset = (page_number - 1) * page_size
     
     # Apply pagination
-    result = base_query.filter(col("row_number").between(offset + 1, offset + page_size)).limit(page_size) 
+    result = base_query.iloc[offset: offset + page_size]
     
     # Extracting columns and filtered data
-    columns = ["BNF_CHAPTER_PLUS_CODE","medication_type", "sum_quantity", "sum_items", "sum_total_quantity","sum_NIC", "sum_actual_cost", "count"]
-    filtered_data = [row.asDict() for row in result.collect()]
+    columns = base_query.columns.tolist()
+    filtered_data = result.to_dict(orient='records')
 
     return columns, filtered_data , total_pages, page_number 
  
@@ -261,40 +246,29 @@ def get_MEDICATION_Name(selected_year, selected_month, page_number, page_size=10
     ]
 
     # Define the base query
-    base_query = liquid_rows.select(*columns_to_select)
-
+    base_query = liquid_rows.copy()
+    
     # Apply filters based on selected_year and selected_month
     if selected_year != "0":
-        base_query = base_query.filter(
-            (col("year") == selected_year)
-        )
-
+        base_query = base_query[base_query['year'] == int(selected_year)]
     if selected_month != "0":
-        base_query = base_query.filter(
-            (col("month") == selected_month) 
-        )
-
-    # Apply distinct if needed
-    base_query = base_query.groupBy("medication").agg(
-        F.sum("QUANTITY").alias("sum_quantity"),
-        F.sum("ITEMS").alias("sum_items"),
-        F.sum("TOTAL_QUANTITY").alias("sum_total_quantity"),
-        F.sum("NIC").alias("sum_NIC"),
-        F.sum("ACTUAL_COST").alias("sum_actual_cost"),
-        F.count("*").alias("count")
-    )
+        base_query = base_query[base_query['month'] == int(selected_month)]
     
-    # Define a window specification with partition_column
-    window_spec_all_data = Window.orderBy("medication", "sum_items", "count")
-
-    # Add a row number to each row based on the window specification
-    base_query = base_query.withColumn("row_number", F.row_number().over(window_spec_all_data))
-
-    # Apply distinct if needed
-    base_query = base_query.distinct()
+    # # Apply distinct if needed
+    base_query = base_query.groupby('medication').agg({
+        'QUANTITY': 'sum',
+        'ITEMS': ['sum', 'count'],
+        'TOTAL_QUANTITY': 'sum',
+        'NIC': 'sum',
+        'ACTUAL_COST': 'sum',
+    }).reset_index()
+    # Flatten the MultiIndex columns
+    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    # Rename the columns
+    base_query.columns = ['medication'] + [f'{col}' for col in base_query.columns[1:]]
 
     # Calculate the total number of records
-    total_records = base_query.count()
+    total_records = len(base_query)
 
     # Calculate the total pages
     total_pages = (total_records + page_size - 1) // page_size
@@ -303,11 +277,11 @@ def get_MEDICATION_Name(selected_year, selected_month, page_number, page_size=10
     offset = (page_number - 1) * page_size
     
     # Apply pagination
-    result = base_query.filter(col("row_number").between(offset + 1, offset + page_size)).limit(page_size) 
+    result = base_query.iloc[offset: offset + page_size]
     
     # Extracting columns and filtered data
-    columns = ["medication", "sum_quantity", "sum_items", "sum_total_quantity","sum_NIC", "sum_actual_cost", "count"]
-    filtered_data = [row.asDict() for row in result.collect()]
+    columns = base_query.columns.tolist()
+    filtered_data = result.to_dict(orient='records')
 
     return columns, filtered_data , total_pages, page_number 
  
@@ -318,40 +292,29 @@ def get_MEDICATION_Type(selected_year, selected_month, page_number, page_size=10
     ]
 
     # Define the base query
-    base_query = prescriptions_df.select(*columns_to_select)
+    base_query = prescriptions_df.copy()
 
     # Apply filters based on selected_year and selected_month
     if selected_year != "0":
-        base_query = base_query.filter(
-            (col("year") == selected_year)
-        )
-
+        base_query = base_query[base_query['year'] == int(selected_year)]
     if selected_month != "0":
-        base_query = base_query.filter(
-            (col("month") == selected_month) 
-        )
+        base_query = base_query[base_query['month'] == int(selected_month)]
 
     # Apply distinct if needed
-    base_query = base_query.groupBy("medication","medication_type").agg(
-        F.sum("QUANTITY").alias("sum_quantity"),
-        F.sum("ITEMS").alias("sum_items"),
-        F.sum("TOTAL_QUANTITY").alias("sum_total_quantity"),
-        F.sum("NIC").alias("sum_NIC"),
-        F.sum("ACTUAL_COST").alias("sum_actual_cost"),
-        F.count("*").alias("count")
-    )
-    
-    # Define a window specification with partition_column
-    window_spec_all_data = Window.orderBy("medication","medication_type", "sum_items", "count")
-
-    # Add a row number to each row based on the window specification
-    base_query = base_query.withColumn("row_number", F.row_number().over(window_spec_all_data))
-
-    # Apply distinct if needed
-    base_query = base_query.distinct()
+    base_query = base_query.groupby(['medication','medication_type']).agg({
+        'QUANTITY': 'sum',
+        'ITEMS': ['sum', 'count'],
+        'TOTAL_QUANTITY': 'sum',
+        'NIC': 'sum',
+        'ACTUAL_COST': 'sum',
+    }).reset_index()
+    # Flatten the MultiIndex columns
+    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    # Rename the columns
+    base_query.columns = ['medication','medication_type'] + [f'{col}' for col in base_query.columns[2:]]
 
     # Calculate the total number of records
-    total_records = base_query.count()
+    total_records = len(base_query)
 
     # Calculate the total pages
     total_pages = (total_records + page_size - 1) // page_size
@@ -360,11 +323,11 @@ def get_MEDICATION_Type(selected_year, selected_month, page_number, page_size=10
     offset = (page_number - 1) * page_size
     
     # Apply pagination
-    result = base_query.filter(col("row_number").between(offset + 1, offset + page_size)).limit(page_size) 
+    result = base_query.iloc[offset: offset + page_size]
     
     # Extracting columns and filtered data
-    columns = ["medication","medication_type", "sum_quantity", "sum_items", "sum_total_quantity","sum_NIC", "sum_actual_cost", "count"]
-    filtered_data = [row.asDict() for row in result.collect()]
+    columns = base_query.columns.tolist()
+    filtered_data = result.to_dict(orient='records')
 
     return columns, filtered_data , total_pages, page_number
 
