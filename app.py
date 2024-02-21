@@ -44,45 +44,15 @@ def extract_medication_and_dosage(description):
 
     if medication.strip():
         dosage = ' '.join(words[len(medication.split()):])
-    
-    # return (medication.strip(), dosage.strip())
+        
     return pd.Series([medication.strip(), dosage.strip()])
 
-# # Create a UDF from the defined function
-# extract_udf = F.udf(extract_medication_and_dosage, returnType=StructType([
-#     StructField("medication", StringType(), True),
-#     StructField("dosage", StringType(), True)
-# ]))
-
-# # Call fetch_and_process_data only if 'async_df' is not in the session or is empty
-# with app.test_request_context('/'):  # Create a temporary request context
-#     if 'prescriptions_df' not in session or session['prescriptions_df'].isEmpty():
-#         prescriptions_df = fetch_and_process_data()
-#         # Store 'async_df' in the session
-#         session['prescriptions_df'] = prescriptions_df
-#     else:
-#         prescriptions_df = session['prescriptions_df']
-
-# total_items = prescriptions_df.count()
-
-# # Create a UDF for Spark FOR MEDICATION TYPE
-# udf_categorize_medication_type = udf(categorize_medication_type, StringType())
-# Apply the UDF to create a new column 'medication_type'
-# prescriptions_df = prescriptions_df.withColumn("medication_type", udf_categorize_medication_type(col("BNF_DESCRIPTION")))
 prescriptions_df['medication_type'] = prescriptions_df['BNF_DESCRIPTION'].apply(categorize_medication_type)
-# Extract year from YEAR_MONTH and create a new column "year"
-# prescriptions_df = prescriptions_df.withColumn("year", F.year(F.from_unixtime(F.unix_timestamp(F.col("YEAR_MONTH").cast("string"), "yyyyMM"))))
-# prescriptions_df = prescriptions_df.withColumn("month", F.month(F.from_unixtime(F.unix_timestamp(F.col("YEAR_MONTH").cast("string"), "yyyyMM"))))
 prescriptions_df['YEAR_MONTH'] = pd.to_datetime(prescriptions_df['YEAR_MONTH'], format='%Y%m')
 prescriptions_df['year'] = prescriptions_df['YEAR_MONTH'].dt.year
 prescriptions_df['month'] = prescriptions_df['YEAR_MONTH'].dt.month
-# Apply the UDF to create new columns
-# prescriptions_df = prescriptions_df.withColumn("extracted_data", extract_udf("BNF_DESCRIPTION"))
-# prescriptions_df = prescriptions_df.withColumn("medication", col("extracted_data.medication"))
-# prescriptions_df = prescriptions_df.withColumn("dosage", col("extracted_data.dosage"))
 prescriptions_df[['medication', 'dosage']] = prescriptions_df['BNF_DESCRIPTION'].apply(extract_medication_and_dosage)
 
-# liquid_rows = prescriptions_df.filter(col("medication_type") == "liquid")
 liquid_rows = prescriptions_df[prescriptions_df['medication_type'] == "liquid"]
 
 def get_all_data(selected_year, selected_month, page_number, page_size=10):
@@ -94,40 +64,24 @@ def get_all_data(selected_year, selected_month, page_number, page_size=10):
     ]
 
     # Define the base query
-    # base_query = prescriptions_df.select(*columns_to_select)
     base_query = prescriptions_df.copy()
 
     # Apply filters based on selected_year and selected_month
-    # if selected_year != "0":
-    #     base_query = base_query.filter(
-    #         (col("year") == selected_year)
-    #     )
     if selected_year != "0":
         base_query = base_query[base_query['year'] == int(selected_year)]
-
-
-    # if selected_month != "0":
-    #     base_query = base_query.filter(
-    #         (col("month") == selected_month) 
-    #     )
     if selected_month != "0":
         base_query = base_query[base_query['month'] == int(selected_month)]
     
     # Define a window specification with partition_column
-    # window_spec_all_data = Window.partitionBy("year", "month").orderBy("year", "month", "PRACTICE_NAME", "BNF_DESCRIPTION")
     window_spec_all_data = ['year', 'month', 'PRACTICE_NAME', 'BNF_DESCRIPTION']
 
-
     # Add a row number to each row based on the window specification
-    # base_query = base_query.withColumn("row_number", F.row_number().over(window_spec_all_data))
     base_query['row_number'] = base_query.groupby(window_spec_all_data).cumcount() + 1
 
     # Apply distinct if needed
-    # base_query = base_query.distinct()
     base_query = base_query.drop_duplicates(subset=columns_to_select)
 
     # Calculate the total number of records
-    # total_records = base_query.count()
     total_records = len(base_query)
 
     # Calculate the total pages
@@ -137,12 +91,10 @@ def get_all_data(selected_year, selected_month, page_number, page_size=10):
     offset = (page_number - 1) * page_size
 
     # Apply pagination
-    # result = base_query.filter(col("row_number").between(offset + 1, offset + page_size)).limit(page_size) 
     result = base_query.iloc[offset:offset + page_size]
 
     # Extracting columns and filtered data
     columns = columns_to_select
-    # filtered_data = [row.asDict() for row in result.collect()]
     filtered_data = result.to_dict(orient='records')
 
     return columns, filtered_data , total_pages, page_number 

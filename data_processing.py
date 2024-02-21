@@ -3,17 +3,9 @@ import requests
 from functools import reduce
 import json
 
-
-# from pyspark.sql import SparkSession
-# from pyspark.sql.functions import col, concat, lit, expr,DataFrame
 from urllib.parse import quote
 
 def fetch_and_process_data():
-
-    # # Initialize Spark session
-    # spark = SparkSession.builder.appName("PrescribingAnalysis").getOrCreate()
-    # spark.conf.set("spark.sql.debug.maxToStringFields", -1)
-
     base_endpoint = 'https://opendata.nhsbsa.net/api/3/action/'
     package_list_method = 'package_list'
     package_show_method = 'package_show?id='
@@ -41,9 +33,6 @@ def fetch_and_process_data():
     resources_table = pd.json_normalize(metadata_response['result']['resources'])
     resource_name_list = resources_table[resources_table['name'].str.contains('2014|2015|2016|2017|2018|2019|2020|2021|2022|2023')]['name']
     
-    # # Convert the list of resource names to a Spark DataFrame
-    # resource_name_df = spark.createDataFrame([(x,) for x in resource_name_list], ["name"])
-
     # Asynchronous API Calls in PySpark
     async_queries = []
 
@@ -58,24 +47,15 @@ def fetch_and_process_data():
         async_queries.append((resource_name, query))
 
     # Create a DataFrame with the queries
-    # resource_name_df = spark.createDataFrame(async_queries, ["encoded_name", "sql_query"])
     resource_name_df = pd.DataFrame(async_queries, columns=["encoded_name", "sql_query"])
 
-
     # Create a new column with the full API request URL
-    # resource_name_df = resource_name_df.withColumn("api_url",
-    #                                             concat(lit(f"{base_endpoint}{action_method}resource_id="),
-    #                                                     col("encoded_name"),
-    #                                                     lit("&sql="),
-    #                                                     col("sql_query").cast("string")))
     resource_name_df["api_url"] = (
         f"{base_endpoint}{action_method}resource_id=" + resource_name_df["encoded_name"]
         + "&sql=" + resource_name_df["sql_query"].astype("string")
     )
 
-
     # Convert the Spark DataFrame to a Pandas DataFrame to get the list of API URLs
-    # api_url_list = resource_name_df.select("api_url").toPandas()["api_url"].tolist()
     api_url_list = resource_name_df["api_url"].tolist()
 
     # Perform asynchronous API calls using Spark
@@ -94,7 +74,6 @@ def fetch_and_process_data():
                     # Check if there are records
                     if records:
                         # Process the records as needed
-                        # tmp_df = spark.createDataFrame(records)
                         tmp_df = pd.DataFrame(records)
                         async_df_list.append(tmp_df)
                     else:
@@ -107,7 +86,6 @@ def fetch_and_process_data():
             print(f"Error: {e}")
         
     # Concatenate all DataFrames in async_df_list into one
-    # async_df = reduce(DataFrame.union, async_df_list)   
     async_df = pd.concat(async_df_list, ignore_index=True)
             
     return async_df
