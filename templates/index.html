@@ -142,21 +142,15 @@
                     </div>
                     
                     <div class="col-3">
-                        <label for="exampleFormControlTextbox1" class="form-label">Surgery</label>
-                        <input type="text" class="form-control" id="exampleFormControlTextbox1"></input>
+                        <label for="txtSurgery" class="form-label">Surgery</label>
+                        <input type="text" class="form-control" id="txtSurgery"></input>
                     </div>
                     <div class="col-12 text-end"> <!-- Added text-end class here -->
                         <button type="submit" class="btn btn-primary">Search</button>
                     </div>
                 </form>
             </div>
-
-            <!--<div class="col-3">
-                <aside class="sidebar">
-                    <h5>Sidebar Title</h5>
-
-                </aside>
-            </div>-->
+            
             <div class="row">
                 <!-- Left Column - Scrollable Table -->
                 <div class="panel" >
@@ -483,6 +477,8 @@
             console.log("Selected Year:", selectedYear);
             var selectedMonth = $('#slcMonth').val();
             console.log("Selected Month:", selectedMonth);
+            var selectedSurgery = $.trim($('#txtSurgery').val());
+            console.log("Selected Surgery:", selectedSurgery);
             
             console.log("Selected page:", pagenumber);
 
@@ -499,6 +495,7 @@
                         selectedValue: selectedValue,
                         selectedYear: selectedYear,
                         selectedMonth: selectedMonth ,
+                        selectedSurgery: selectedSurgery ,
                         page_number: pagenumber,
                         page_size: selectedPageSize
                     },
