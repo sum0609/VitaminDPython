@@ -92,6 +92,8 @@
             
             <div class="header-container mb-4 p-3">
                 <h1>NHS Prescriptions Dashboard - Vitamin D </h1> 
+                
+                <a href="#" onclick="extractData()">Extract data from NHS</a>
             </div>
             <div class="row" style="padding-bottom:10px;">
                 <form class="row g-3">
@@ -573,26 +575,60 @@
             document.getElementById('loading-message').style.display = 'none';
         }
     </script>
+    <script>
+        function extractData() {
+            const userConfirmed = window.confirm('Are you sure you want to extract data from Live NHS? It may take long time to process!');
+            if (userConfirmed) {
+                $.ajax({
+                    type: 'GET',
+                    url: '/extractData',
+                    beforeSend: function() {
+                        showLoading();
+                    },
+                    success: function(response) {
+                        console.log(response);
+                        alert(response);
+                    },
+                    error: function(error) {
+                        console.error('Error fetching data:', error);
+                    },
+                    complete: function() {
+                        hideLoading();
+                    }
+                });
+                //fetch('/extractData')  
+                    //.then(response => response.json())
+                    //.then(data => {
+                    //    console.log(data);  // Handle the response from your Flask app
+                    //})
+                    //.catch(error => {
+                    //    console.error('Error:', error);
+                    //});
+            } else {
+                // User canceled, you can handle this as needed
+                console.log('User canceled the action.');
+            }
+        }
+        
+    </script>
+    <script>//Cesium
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjNjUwMTZmNC1lOGIxLTRlNDUtYjk5ZS0xZGNiOTk3YTU0NTIiLCJpZCI6NzE5OTEsImlhdCI6MTcwMzExNzgwNH0.aFH7fFJ1zHNAXrAfst152hRaueJyhmoZXj-hU067sbM'
+        
+        // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
+        let longitudeString = "longitudeString";
+        let latitudeString = "latitudeString";
 
-
-<script>
-    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjNjUwMTZmNC1lOGIxLTRlNDUtYjk5ZS0xZGNiOTk3YTU0NTIiLCJpZCI6NzE5OTEsImlhdCI6MTcwMzExNzgwNH0.aFH7fFJ1zHNAXrAfst152hRaueJyhmoZXj-hU067sbM'
-    
-    // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
-    let longitudeString = "longitudeString";
-    let latitudeString = "latitudeString";
-
-    const viewer = new Cesium.Viewer('cesiumContainer', {
-      //globe: false,
-      timeline: false,
-      animation: false,
-      skyAtmosphere: new Cesium.SkyAtmosphere(),
-      sceneModePicker: true,
-      baseLayerPicker: true,
-      terrainProvider: new Cesium.CesiumTerrainProvider({
-        url: Cesium.IonResource.fromAssetId(1)
-      })
-    })
-      </script>
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+        //globe: false,
+        timeline: false,
+        animation: false,
+        skyAtmosphere: new Cesium.SkyAtmosphere(),
+        sceneModePicker: true,
+        baseLayerPicker: true,
+        terrainProvider: new Cesium.CesiumTerrainProvider({
+            url: Cesium.IonResource.fromAssetId(1)
+        })
+        })
+    </script>
 </body>
 </html>

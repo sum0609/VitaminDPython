@@ -1,6 +1,8 @@
 from flask import Flask, render_template, session, jsonify, request
 
 import pandas as pd
+import glob
+import os
 from data_processing import fetch_and_process_data
 
 app = Flask(__name__)
@@ -9,8 +11,18 @@ app.secret_key = 'vitDSession'
 # Fetch and process data
 # prescriptions_df = fetch_and_process_data() 
 
-csv_file_path = "data/nhs.csv"
-prescriptions_df = pd.read_csv(csv_file_path)
+data_folder = "data"
+file_prefix = "output_"
+csv_files = glob.glob(os.path.join(data_folder, f"{file_prefix}*.csv"))
+if csv_files:
+    # Sort files by modification time and get the latest one
+    latest_csv_file = max(csv_files, key=os.path.getmtime)
+
+    # Read the CSV file into a Pandas DataFrame
+    prescriptions_df = pd.read_csv(latest_csv_file)
+else:
+    csv_file_path = "data/nhs.csv"
+    prescriptions_df = pd.read_csv(csv_file_path)
 
 # TO SEPERATE MEDICINE ON THE BASIS OF ITS FORM 
 # Define a UDF to categorize medication types based on keywords
@@ -82,6 +94,10 @@ def get_all_data(selected_year, selected_month,selected_Surgery, page_number, pa
 
     # Apply distinct if needed
     base_query = base_query.drop_duplicates(subset=columns_to_select)
+    
+    # Sort the DataFrame by multiple columns
+    sort_columns = ["year", "month", "PRACTICE_NAME", "BNF_DESCRIPTION"]
+    base_query = base_query.sort_values(by=sort_columns)
 
     # Calculate the total number of records
     total_records = len(base_query)
@@ -375,5 +391,9 @@ def home():
     else:
         return render_template('index.html')
 
+@app.route('/extractData', methods=['GET'])
+def extractData():
+    result = fetch_and_process_data()
+    return jsonify(result) 
 if __name__ == '__main__':
     app.run(debug=True, threaded=False)

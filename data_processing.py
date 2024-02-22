@@ -2,6 +2,8 @@ import pandas as pd
 import requests
 from functools import reduce
 import json
+import os
+from datetime import datetime
 
 from urllib.parse import quote
 
@@ -63,7 +65,7 @@ def fetch_and_process_data():
     
     for api_url in api_url_list:
         try:
-            response = requests.get(api_url)
+            response = requests.get(api_url, timeout=30)
             response.raise_for_status()  # Raise an HTTPError for bad responses
             if response.ok:
                 tmp_response = response.json()
@@ -87,5 +89,16 @@ def fetch_and_process_data():
         
     # Concatenate all DataFrames in async_df_list into one
     async_df = pd.concat(async_df_list, ignore_index=True)
+    
+    current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_filename = f"output_{current_datetime}.csv"
+    
+    # Define the path for the CSV file in the "data" folder
+    csv_file_path = os.path.join("data", csv_filename)
+
+    # Export the DataFrame to CSV
+    async_df.to_csv(csv_file_path, index=False)
+
+    result = f"The DataFrame has been exported to {csv_file_path}"
             
-    return async_df
+    return result
