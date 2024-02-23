@@ -15,8 +15,11 @@ data_folder = "data"
 file_prefix = "output_"
 csv_files = glob.glob(os.path.join(data_folder, f"{file_prefix}*.csv"))
 if csv_files:
+    # Extract modification times for each file
+    file_modification_times = [(f, os.path.getmtime(f)) for f in csv_files]
+
     # Sort files by modification time and get the latest one
-    latest_csv_file = max(csv_files, key=os.path.getmtime)
+    latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
 
     # Read the CSV file into a Pandas DataFrame
     prescriptions_df = pd.read_csv(latest_csv_file)
@@ -67,10 +70,10 @@ prescriptions_df[['medication', 'dosage']] = prescriptions_df['BNF_DESCRIPTION']
 
 liquid_rows = prescriptions_df[prescriptions_df['medication_type'] == "liquid"]
 
-def get_all_data(selected_year, selected_month,selected_Surgery, page_number, page_size=10):
+def get_all_data(selected_year, selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size=10):
     # Define the base selection of columns
     columns_to_select = [
-        "year","month", "PRACTICE_NAME", "PRACTICE_CODE","POSTCODE","BNF_DESCRIPTION", 
+        "year","month", "PRACTICE_NAME", "PRACTICE_CODE","POSTCODE","CHEMICAL_SUBSTANCE_BNF_DESCR","BNF_DESCRIPTION", 
         "BNF_CHAPTER_PLUS_CODE", "medication_type","medication", "dosage",
         "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
     ]
@@ -85,9 +88,11 @@ def get_all_data(selected_year, selected_month,selected_Surgery, page_number, pa
         base_query = base_query[base_query['month'] == int(selected_month)]
     if selected_Surgery != "":
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(selected_Surgery, case=False, na=False))]
+    if selected_ChemicalSub != "":
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
 
     # Define a window specification with partition_column
-    window_spec_all_data = ['year', 'month', 'PRACTICE_NAME', 'BNF_DESCRIPTION']
+    window_spec_all_data = ['year', 'month', 'PRACTICE_NAME', 'CHEMICAL_SUBSTANCE_BNF_DESCR', 'BNF_DESCRIPTION']
 
     # Add a row number to each row based on the window specification
     base_query['row_number'] = base_query.groupby(window_spec_all_data).cumcount() + 1
@@ -96,7 +101,7 @@ def get_all_data(selected_year, selected_month,selected_Surgery, page_number, pa
     base_query = base_query.drop_duplicates(subset=columns_to_select)
     
     # Sort the DataFrame by multiple columns
-    sort_columns = ["year", "month", "PRACTICE_NAME", "BNF_DESCRIPTION"]
+    sort_columns = ["year", "month", "PRACTICE_NAME", "CHEMICAL_SUBSTANCE_BNF_DESCR", "BNF_DESCRIPTION"]
     base_query = base_query.sort_values(by=sort_columns)
 
     # Calculate the total number of records
@@ -113,17 +118,18 @@ def get_all_data(selected_year, selected_month,selected_Surgery, page_number, pa
 
     # Extracting columns and filtered data
     columns = columns_to_select
+    headers = [col.replace('_', ' ').upper() for col in columns]
     filtered_data = result.to_dict(orient='records')
 
-    return columns, filtered_data , total_pages, page_number 
+    return headers, columns, filtered_data , total_pages, page_number 
 
-def get_bnf_descriptions(selected_year, selected_month,selected_Surgery, page_number, page_size=10):
+def get_bnf_descriptions(selected_year, selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size=10):
     # Define the base selection of columns
     columns_to_select = [
         "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
     ]
     filter_columns_to_select = []
-    grouping_columns_cnt = 1
+    grouping_columns_cnt = 2
 
     # Define the base query
     base_query = liquid_rows.copy()
@@ -141,8 +147,10 @@ def get_bnf_descriptions(selected_year, selected_month,selected_Surgery, page_nu
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(selected_Surgery, case=False, na=False))]
-    
-    groupby_columns = filter_columns_to_select + ["BNF_DESCRIPTION"]
+    if selected_ChemicalSub != "":
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
+
+    groupby_columns = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR","BNF_DESCRIPTION"]
     
     base_query = base_query.groupby(groupby_columns).agg({   
         'QUANTITY': 'sum',
@@ -170,11 +178,12 @@ def get_bnf_descriptions(selected_year, selected_month,selected_Surgery, page_nu
 
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
+    headers = [col.replace('_', ' ').upper() for col in columns]
     filtered_data = result.to_dict(orient='records')
 
-    return columns, filtered_data , total_pages, page_number 
+    return headers, columns, filtered_data , total_pages, page_number 
  
-def get_BNF_CHAPTER_PLUS_CODE(selected_year, selected_month,selected_Surgery, page_number, page_size=10):
+def get_BNF_CHAPTER_PLUS_CODE(selected_year, selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size=10):
     # Define the base selection of columns
     columns_to_select = [
         "BNF_CHAPTER_PLUS_CODE","medication_type","QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
@@ -198,7 +207,11 @@ def get_BNF_CHAPTER_PLUS_CODE(selected_year, selected_month,selected_Surgery, pa
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(selected_Surgery, case=False, na=False))]
-    
+    if selected_ChemicalSub != "":
+        filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
+
     groupby_columns = filter_columns_to_select + ["BNF_CHAPTER_PLUS_CODE"]
     
     base_query = base_query.groupby(groupby_columns).agg({  
@@ -227,11 +240,12 @@ def get_BNF_CHAPTER_PLUS_CODE(selected_year, selected_month,selected_Surgery, pa
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
+    headers = [col.replace('_', ' ').upper() for col in columns]
     filtered_data = result.to_dict(orient='records')
 
-    return columns, filtered_data , total_pages, page_number 
+    return headers, columns, filtered_data , total_pages, page_number 
  
-def get_MEDICATION_Name(selected_year, selected_month,selected_Surgery, page_number, page_size=10):
+def get_MEDICATION_Name(selected_year, selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size=10):
     # Define the base selection of columns
     columns_to_select = [
         "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
@@ -255,7 +269,11 @@ def get_MEDICATION_Name(selected_year, selected_month,selected_Surgery, page_num
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(selected_Surgery, case=False, na=False))]
-    
+    if selected_ChemicalSub != "":
+        filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
+
     groupby_columns = filter_columns_to_select + ["medication"]
     
     base_query = base_query.groupby(groupby_columns).agg({ 
@@ -284,11 +302,12 @@ def get_MEDICATION_Name(selected_year, selected_month,selected_Surgery, page_num
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
+    headers = [col.replace('_', ' ').upper() for col in columns]
     filtered_data = result.to_dict(orient='records')
 
-    return columns, filtered_data , total_pages, page_number 
+    return headers, columns, filtered_data , total_pages, page_number 
  
-def get_MEDICATION_Type(selected_year, selected_month,selected_Surgery, page_number, page_size=10):
+def get_MEDICATION_Type(selected_year, selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size=10):
     # Define the base selection of columns
     columns_to_select = [
         "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
@@ -312,6 +331,10 @@ def get_MEDICATION_Type(selected_year, selected_month,selected_Surgery, page_num
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(selected_Surgery, case=False, na=False))]
+    if selected_ChemicalSub != "":
+        filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
 
     groupby_columns = filter_columns_to_select + ["medication","medication_type"]
     
@@ -341,9 +364,70 @@ def get_MEDICATION_Type(selected_year, selected_month,selected_Surgery, page_num
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
+    headers = [col.replace('_', ' ').upper() for col in columns]
     filtered_data = result.to_dict(orient='records')
 
-    return columns, filtered_data , total_pages, page_number
+    return headers, columns, filtered_data , total_pages, page_number
+
+def get_CHEMICAL_SUB(selected_year, selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size=10):
+    # Define the base selection of columns
+    columns_to_select = [
+        "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
+    ]
+    filter_columns_to_select = []
+    grouping_columns_cnt = 2
+
+    # Define the base query
+    base_query = prescriptions_df.copy()
+
+    # Apply filters based on selected_year and selected_month
+    if selected_year != "0":
+        filter_columns_to_select = ["year"] + filter_columns_to_select
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['year'] == int(selected_year)]
+    if selected_month != "0":
+        filter_columns_to_select = filter_columns_to_select + ["month"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['month'] == int(selected_month)]
+    if selected_Surgery != "":
+        filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
+        grouping_columns_cnt += 2
+        base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(selected_Surgery, case=False, na=False))]
+    if selected_ChemicalSub != "":
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
+
+    groupby_columns = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR","medication_type"]
+    
+    base_query = base_query.groupby(groupby_columns).agg({
+        'QUANTITY': 'sum',
+        'ITEMS': ['sum', 'count'],
+        'TOTAL_QUANTITY': 'sum',
+        'NIC': 'sum',
+        'ACTUAL_COST': 'sum',
+    }).reset_index()
+    # Flatten the MultiIndex columns
+    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    # Rename the columns
+    base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
+
+    # Calculate the total number of records
+    total_records = len(base_query)
+
+    # Calculate the total pages
+    total_pages = (total_records + page_size - 1) // page_size
+
+    # Calculate the offset based on page_number and page_size
+    offset = (page_number - 1) * page_size
+    
+    # Apply pagination
+    result = base_query.iloc[offset: offset + page_size]
+    
+    # Extracting columns and filtered data
+    columns = base_query.columns.tolist()
+    headers = [col.replace('_', ' ').upper() for col in columns]
+    filtered_data = result.to_dict(orient='records')
+
+    return headers, columns, filtered_data , total_pages, page_number
 
 # Define routes and views
 @app.route('/', methods=['GET'])
@@ -353,6 +437,7 @@ def home():
         selected_year = request.args.get('selectedYear')
         selected_month = request.args.get('selectedMonth')
         selected_Surgery = request.args.get('selectedSurgery')
+        selected_ChemicalSub = request.args.get('selectedChemicalSub')
         page_number = int(request.args.get('page_number', 1))
         page_size = int(request.args.get('page_size', 10))
         total_pages = 1
@@ -362,15 +447,17 @@ def home():
 
         # Fetch dynamic columns and data based on the selected value
         if selected_value == "1" :
-            columns, filtered_data, total_pages, current_page = get_all_data(selected_year,selected_month,selected_Surgery, page_number, page_size)
+            headers, columns, filtered_data, total_pages, current_page = get_all_data(selected_year,selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size)
         elif selected_value == "2" :
-            columns, filtered_data, total_pages, current_page = get_bnf_descriptions(selected_year,selected_month,selected_Surgery, page_number, page_size)
+            headers, columns, filtered_data, total_pages, current_page = get_bnf_descriptions(selected_year,selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size)
         elif selected_value == "3" :
-            columns, filtered_data, total_pages, current_page = get_BNF_CHAPTER_PLUS_CODE(selected_year,selected_month,selected_Surgery, page_number, page_size)
+            headers, columns, filtered_data, total_pages, current_page = get_BNF_CHAPTER_PLUS_CODE(selected_year,selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size)
         elif selected_value == "4" :
-            columns, filtered_data, total_pages, current_page = get_MEDICATION_Name(selected_year,selected_month,selected_Surgery, page_number, page_size)
+            headers, columns, filtered_data, total_pages, current_page = get_MEDICATION_Name(selected_year,selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size)
         elif selected_value == "5" :
-            columns, filtered_data, total_pages, current_page = get_MEDICATION_Type(selected_year,selected_month,selected_Surgery, page_number, page_size)
+            headers, columns, filtered_data, total_pages, current_page = get_MEDICATION_Type(selected_year,selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size)
+        elif selected_value == "6" :
+            headers, columns, filtered_data, total_pages, current_page = get_CHEMICAL_SUB(selected_year,selected_month,selected_Surgery, selected_ChemicalSub, page_number, page_size)
     
 
         # Calculate prev_page_number and next_page_number
@@ -378,7 +465,7 @@ def home():
         next_page_number = min(total_pages, page_number + 1)
 
         # Prepare response
-        response = { 'columns': columns, 'rows': filtered_data}
+        response = { 'headers': headers, 'columns': columns, 'rows': filtered_data}
         
         
         all_data_param = {

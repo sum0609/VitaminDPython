@@ -97,7 +97,7 @@
             <div class="header-container mb-4 p-3">
                 <h1>NHS Prescriptions Dashboard - Vitamin D </h1> 
                 
-                <a href="#" onclick="extractData()" id="extract">Extract data from NHS</a>
+                <a href="#" onclick="extractData()" id="extract">Extract data from Live NHS</a>
             </div>
             <div class="row" style="padding-bottom:10px;">
                 <form class="row g-3">
@@ -110,6 +110,7 @@
                             <option value="3">Group by BNF_CHAPTER_PLUS_CODE</option>
                             <option value="4">Group by MEDICATION NAME</option>
                             <option value="5">Group by MEDICATION TYPE</option>
+                            <option value="6">Group by CHEMICAL SUBSTANCE</option>
                         </select>
                     </div>
                     <div class="col-3">
@@ -151,7 +152,11 @@
                         <label for="txtSurgery" class="form-label">Surgery</label>
                         <input type="text" class="form-control" id="txtSurgery"></input>
                     </div>
-                    <div class="col-12 text-end"> <!-- Added text-end class here -->
+                    <div class="col-3">
+                        <label for="txtChemicalSub" class="form-label">Chemical Substance</label>
+                        <input type="text" class="form-control" id="txtChemicalSub"></input>
+                    </div>
+                    <div class="col-9 text-end"> <!-- Added text-end class here -->
                         <button type="submit" class="btn btn-primary">Search</button>
                     </div>
                 </form>
@@ -176,213 +181,213 @@
                     </div>
                     <!-- Add a container with a fixed height for scrolling -->
                     <div class="table-container" style="max-height: 500px; overflow: auto;">
-                            <table id="dataTable" class="table table-striped table-bordered mb-3" style="width:100%">
-                                <thead>
+                        <table id="dataTable" class="table table-striped table-bordered mb-3" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>YEAR</th>
+                                    <th>MONTH</th>
+                                    <th>PRACTICE NAME </th>
+                                    <th>PRACTICE CODE</th>
+                                    <th>POSTCODE</th>
+                                    <th>BNF DESCRIPTION</th>
+                                    <th>BNF CHAPTER PLUS</th>
+                                    <th>MEDICATION TYPE</th>
+                                    <th>MEDICATION </th>
+                                    <th>DOSAGE </th>
+                                    <th>QUANTITY </th>
+                                    <th>ITEMS </th>
+                                    <th>TOTAL QUANTITY </th>
+                                    <th>NIC </th>
+                                    <th>ACTUAL COST </th>
+                                    
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prescription in all_data %}
                                     <tr>
-                                        <th>YEAR</th>
-                                        <th>MONTH</th>
-                                        <th>PRACTICE NAME </th>
-                                        <th>PRACTICE CODE</th>
-                                        <th>POSTCODE</th>
-                                        <th>BNF DESCRIPTION</th>
-                                        <th>BNF CHAPTER PLUS</th>
-                                        <th>MEDICATION TYPE</th>
-                                        <th>MEDICATION </th>
-                                        <th>DOSAGE </th>
-                                        <th>QUANTITY </th>
-                                        <th>ITEMS </th>
-                                        <th>TOTAL QUANTITY </th>
-                                        <th>NIC </th>
-                                        <th>ACTUAL COST </th>
+
+                                        <td>
+                                            {% if prescription['year'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['year'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['year']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['month'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['month'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['month']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['PRACTICE_NAME'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['PRACTICE_NAME'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['PRACTICE_NAME']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['PRACTICE_CODE'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['PRACTICE_CODE'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['PRACTICE_CODE']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
                                         
+                                        <td>
+                                            {% if prescription['POSTCODE'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['POSTCODE'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['POSTCODE']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['BNF_DESCRIPTION'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['BNF_DESCRIPTION'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['BNF_DESCRIPTION']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        
+                                        <td>
+                                            {% if prescription['BNF_CHAPTER_PLUS_CODE'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['BNF_CHAPTER_PLUS_CODE'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['BNF_CHAPTER_PLUS_CODE']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if prescription['medication_type'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['medication_type'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['medication_type']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['medication'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['medication'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['medication']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['dosage'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['dosage'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['dosage']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['QUANTITY'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['QUANTITY'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['QUANTITY']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['ITEMS'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['ITEMS'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['ITEMS']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['TOTAL_QUANTITY'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['TOTAL_QUANTITY'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['TOTAL_QUANTITY']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['NIC'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['NIC'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['NIC']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if prescription['ACTUAL_COST'] is none %}
+                                                N/A
+                                            {% else %}
+                                                {% if prescription['ACTUAL_COST'] == '' %}
+                                                    Empty
+                                                {% else %}
+                                                    {{ prescription['ACTUAL_COST']|string|default('') }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {% for prescription in all_data %}
-                                        <tr>
-
-                                            <td>
-                                                {% if prescription['year'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['year'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['year']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['month'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['month'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['month']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['PRACTICE_NAME'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['PRACTICE_NAME'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['PRACTICE_NAME']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['PRACTICE_CODE'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['PRACTICE_CODE'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['PRACTICE_CODE']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-                                            
-                                            <td>
-                                                {% if prescription['POSTCODE'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['POSTCODE'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['POSTCODE']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['BNF_DESCRIPTION'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['BNF_DESCRIPTION'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['BNF_DESCRIPTION']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-                                            
-                                            <td>
-                                                {% if prescription['BNF_CHAPTER_PLUS_CODE'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['BNF_CHAPTER_PLUS_CODE'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['BNF_CHAPTER_PLUS_CODE']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if prescription['medication_type'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['medication_type'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['medication_type']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['medication'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['medication'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['medication']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['dosage'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['dosage'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['dosage']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['QUANTITY'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['QUANTITY'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['QUANTITY']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['ITEMS'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['ITEMS'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['ITEMS']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['TOTAL_QUANTITY'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['TOTAL_QUANTITY'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['TOTAL_QUANTITY']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['NIC'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['NIC'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['NIC']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                {% if prescription['ACTUAL_COST'] is none %}
-                                                    N/A
-                                                {% else %}
-                                                    {% if prescription['ACTUAL_COST'] == '' %}
-                                                        Empty
-                                                    {% else %}
-                                                        {{ prescription['ACTUAL_COST']|string|default('') }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -485,6 +490,8 @@
             console.log("Selected Month:", selectedMonth);
             var selectedSurgery = $.trim($('#txtSurgery').val());
             console.log("Selected Surgery:", selectedSurgery);
+            var selectedChemicalSub = $.trim($('#txtChemicalSub').val());
+            console.log("Selected Chemical Substance:", selectedChemicalSub);
             
             console.log("Selected page:", pagenumber);
 
@@ -502,6 +509,7 @@
                         selectedYear: selectedYear,
                         selectedMonth: selectedMonth ,
                         selectedSurgery: selectedSurgery ,
+                        selectedChemicalSub: selectedChemicalSub ,
                         page_number: pagenumber,
                         page_size: selectedPageSize
                     },
@@ -534,7 +542,7 @@
         function renderTable(data) {
             console.log(data.response);  // Inspect the data object
             
-            if (!data.response || !data.response.columns || !data.response.rows) {
+            if (!data.response || !data.response.headers || !data.response.columns || !data.response.rows) {
                 console.error('Invalid data structure:', data.response);
                 return;
             }
@@ -544,8 +552,8 @@
 
             // Render headers
             var headers = '<tr>';
-            for (var i = 0; i < data.response.columns.length; i++) {
-                headers += '<th>' + data.response.columns[i] + '</th>';
+            for (var i = 0; i < data.response.headers.length; i++) {
+                headers += '<th>' + data.response.headers[i] + '</th>';
             }
             headers += '</tr>';
             $('#dataTable thead').append(headers);
