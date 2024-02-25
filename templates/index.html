@@ -108,9 +108,13 @@
                             <option selected value="1">All Records</option>
                             <option value="2">Group by BNF_DESCRIPTION</option>
                             <option value="3">Group by BNF_CHAPTER_PLUS_CODE</option>
-                            <option value="4">Group by MEDICATION NAME</option>
-                            <option value="5">Group by MEDICATION TYPE</option>
-                            <option value="6">Group by CHEMICAL SUBSTANCE</option>
+                            <option value="4">Group by Medication Name</option>
+                            <option value="5">Group by Formation</option>
+                            <option value="6">Group by Chemical Substance</option>
+                            <option value="7">Surgery wise Patient Count</option>
+                            <option value="8">Items for Vitamin D vs Patients</option>
+                            <option value="9">Items for Formation vs Patients</option>
+                            <option value="10">Group by Dosage with Formation</option>
                         </select>
                     </div>
                     <div class="col-3">
@@ -156,7 +160,15 @@
                         <label for="txtChemicalSub" class="form-label">Chemical Substance</label>
                         <input type="text" class="form-control" id="txtChemicalSub"></input>
                     </div>
-                    <div class="col-9 text-end"> <!-- Added text-end class here -->
+                    <div class="col-3">
+                        <label for="txtMedication" class="form-label">Medication</label>
+                        <input type="text" class="form-control" id="txtMedication"></input>
+                    </div>
+                    <div class="col-3">
+                        <label for="txtFormation" class="form-label">Formation</label>
+                        <input type="text" class="form-control" id="txtFormation"></input>
+                    </div>
+                    <div class="col-3 text-end"> <!-- Added text-end class here -->
                         <button type="submit" class="btn btn-primary">Search</button>
                     </div>
                 </form>
@@ -492,6 +504,10 @@
             console.log("Selected Surgery:", selectedSurgery);
             var selectedChemicalSub = $.trim($('#txtChemicalSub').val());
             console.log("Selected Chemical Substance:", selectedChemicalSub);
+            var selectedMedication = $.trim($('#txtMedication').val());
+            console.log("Selected Medication:", selectedMedication);
+            var selectedFormation = $.trim($('#txtFormation').val());
+            console.log("Selected Formation:", selectedFormation);
             
             console.log("Selected page:", pagenumber);
 
@@ -510,6 +526,8 @@
                         selectedMonth: selectedMonth ,
                         selectedSurgery: selectedSurgery ,
                         selectedChemicalSub: selectedChemicalSub ,
+                        selectedMedication: selectedMedication ,
+                        selectedFormation: selectedFormation ,
                         page_number: pagenumber,
                         page_size: selectedPageSize
                     },
