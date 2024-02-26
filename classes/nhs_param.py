@@ -1,5 +1,5 @@
 class NHSParam:
-    def __init__(self, selected_year, selected_month, selected_Surgery, selected_ChemicalSub, selected_Medication, selected_Formation, page_number, page_size=10):
+    def __init__(self, selected_year, selected_month, selected_Surgery, selected_ChemicalSub, selected_Medication, selected_Formation, page_number, page_size, exportFile=""):
         self.selected_year = selected_year
         self.selected_month = selected_month
         self.selected_Surgery = selected_Surgery
@@ -8,3 +8,4 @@ class NHSParam:
         self.selected_Formation = selected_Formation
         self.page_number = page_number
         self.page_size = page_size
+        self.exportFile = exportFile

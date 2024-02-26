@@ -5,6 +5,11 @@ import glob
 import os
 from data_processing import fetch_and_process_data
 from classes.nhs_param import NHSParam
+from datetime import datetime
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter,landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 app.secret_key = 'vitDSession'
@@ -119,7 +124,15 @@ def get_all_data(param):
     offset = (param.page_number - 1) * param.page_size
 
     # Apply pagination
-    result = base_query.iloc[offset:offset + param.page_size]
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
 
     # Extracting columns and filtered data
     columns = columns_to_select
@@ -184,7 +197,15 @@ def get_bnf_descriptions(param):
     offset = (param.page_number - 1) * param.page_size
     
     # Apply pagination
-    result = base_query.iloc[offset: offset + param.page_size]
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
 
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -251,7 +272,15 @@ def get_BNF_CHAPTER_PLUS_CODE(param):
     offset = (param.page_number - 1) * param.page_size
     
     # Apply pagination
-    result = base_query.iloc[offset: offset + param.page_size]
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -316,7 +345,15 @@ def get_MEDICATION_Name(param):
     offset = (param.page_number - 1) * param.page_size
     
     # Apply pagination
-    result = base_query.iloc[offset: offset + param.page_size]
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -379,7 +416,15 @@ def get_Formation(param):
     offset = (param.page_number - 1) * param.page_size
     
     # Apply pagination
-    result = base_query.iloc[offset: offset + param.page_size]
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -444,7 +489,15 @@ def get_CHEMICAL_SUB(param):
     offset = (param.page_number - 1) * param.page_size
     
     # Apply pagination
-    result = base_query.iloc[offset: offset + param.page_size]
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -519,7 +572,15 @@ def get_SurgeryPatient(param):
     offset = (param.page_number - 1) * param.page_size
     
     # Apply pagination
-    result = base_query.iloc[offset: offset + param.page_size]
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -601,7 +662,15 @@ def get_ItemsVsPatient(param):
     offset = (param.page_number - 1) * param.page_size
     
     # Apply pagination
-    result = base_query.iloc[offset: offset + param.page_size]
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -674,7 +743,15 @@ def get_FormationVsPatient(param):
     offset = (param.page_number - 1) * param.page_size
     
     # Apply pagination
-    result = base_query.iloc[offset: offset + param.page_size]
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -736,15 +813,60 @@ def get_DosageWithFormation(param):
 
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
+
+    print(f"Exporting CSV: {param.exportFile}")
     
-    # Apply pagination
-    result = base_query.iloc[offset: offset + param.page_size]
-    
+    if(param.exportFile=="csv"):
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_file_name = f"exported_data_{current_datetime}.csv"
+        csv_file_path = os.path.join(downloads_dir, csv_file_name)
+        print(f"CSV File Path: {csv_file_path}")
+        result = base_query
+        result.to_csv(csv_file_path, index=False)
+        if os.path.exists(csv_file_path):
+            print("CSV file successfully created.")
+        else:
+            print("Error: CSV file creation failed.")
+            
+    # elif(param.exportFile=="pdf"):
+    #     result = base_query
+    #     data = [result.columns.tolist()] + result.values.tolist()
+        
+    #     downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+    #     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+    #     pdf_file_name = f"exported_data_{current_datetime}.pdf"
+    #     pdf_file_path = os.path.join(downloads_dir, pdf_file_name)
+        
+    #     col_widths = [150, 100, 100, 100, 100, 100, 150, 100, 100]
+    #     pdf = SimpleDocTemplate(pdf_file_path, pagesize=landscape(letter))
+
+    #     # Create a table with data
+    #     table = Table(data, colWidths=col_widths)
+
+    #     # Apply styles to the table
+    #     style = TableStyle([
+    #         ('BACKGROUND', (0, 0), (-1, 0), '#eeeeee'),
+    #         ('TEXTCOLOR', (0, 0), (-1, 0), '#333333'),
+    #         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    #         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+    #         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+    #         ('BACKGROUND', (0, 1), (-1, -1), '#ffffff'),
+    #         ('GRID', (0, 0), (-1, -1), 1, '#888888'),
+    #     ])
+
+    #     table.setStyle(style)
+
+    #     # Build the PDF document
+    #     pdf.build([table])
+    else:
+        result = base_query.iloc[offset: offset + param.page_size]
+        
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
     headers = [col.replace('_', ' ').upper() for col in columns]
     filtered_data = result.to_dict(orient='records')
-
+    
     return headers, columns, filtered_data , total_pages, param.page_number
 
 # Define routes and views
@@ -760,8 +882,9 @@ def home():
         selected_Formation = request.args.get('selectedFormation')
         page_number = int(request.args.get('page_number', 1))
         page_size = int(request.args.get('page_size', 10))
+        exportFile = request.args.get('exportFile')
         
-        param = NHSParam(selected_year, selected_month,selected_Surgery, selected_ChemicalSub, selected_Medication, selected_Formation, page_number, page_size)
+        param = NHSParam(selected_year, selected_month,selected_Surgery, selected_ChemicalSub, selected_Medication, selected_Formation, page_number, page_size,exportFile)
         
         total_pages = 1
         columns = [] 

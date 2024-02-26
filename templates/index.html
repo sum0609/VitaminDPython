@@ -177,12 +177,14 @@
             <div class="row">
                 <!-- Left Column - Scrollable Table -->
                 <div class="panel" >
-                    <div class= "panel-heading" ><h5>Data Explorer</h5></div>
+                    <div class= "panel-heading" ><h5>Data Explorer</h5>
+                        <a href="#" onclick="loadForm(1,'csv')" id="exportCsv">CSV</a> <!--| <a href="#" onclick="loadForm(1,'pdf')" id="exportPdf">PDF</a>-->
+                    </div>
 
                     <!-- Add a form for selecting page size -->
                     <form id="pageSizeForm">
                         <label for="pageSizeSelect">Rows per page:</label>
-                        <select id="pageSizeSelect" name="page_size" onchange="loadForm(1)">
+                        <select id="pageSizeSelect" name="page_size" onchange="loadForm(1,'')">
                             <option value="10" {% if request.args.get('page_size', 10) == '10' %}selected{% endif %}>10</option>
                             <option value="20" {% if request.args.get('page_size', 10) == '20' %}selected{% endif %}>20</option>
                             <option value="30" {% if request.args.get('page_size', 10) == '30' %}selected{% endif %}>30</option>
@@ -443,7 +445,7 @@
             if (response && response.all_data_param && response.all_data_param.prev_page_number) {
                 prevPageLink.href = "javascript:void(0);"; // Set a placeholder href
                 prevPageLink.addEventListener('click', function () {
-                    loadForm(response.all_data_param.prev_page_number)});
+                    loadForm(response.all_data_param.prev_page_number,'')});
             } else {
                 prevPageLink.href = '#';
             }
@@ -465,7 +467,7 @@
             if (response && response.all_data_param && response.all_data_param.next_page_number) {
                 nextPageLink.href = "javascript:void(0);"; // Set a placeholder href
                 nextPageLink.addEventListener('click', function () {
-                    loadForm(response.all_data_param.next_page_number)});
+                    loadForm(response.all_data_param.next_page_number,'')});
             } else {
                 nextPageLink.href = '#';
             }
@@ -486,13 +488,13 @@
                 // Prevent the default form submission behavior
                 event.preventDefault();
 
-                loadForm(1);
+                loadForm(1,'');
             });
         } );
 
     </script>
     <script>// loadForm
-        function loadForm(pagenumber){
+        function loadForm(pagenumber,exportFile){
             // Get the selected value from the dropdown
             var selectedValue = $('#mySelect').val();
             console.log("Selected value:", selectedValue);
@@ -529,7 +531,8 @@
                         selectedMedication: selectedMedication ,
                         selectedFormation: selectedFormation ,
                         page_number: pagenumber,
-                        page_size: selectedPageSize
+                        page_size: selectedPageSize,
+                        exportFile: exportFile
                     },
                     beforeSend: function() {
                         // This function will be called before the request is sent
@@ -537,8 +540,10 @@
                     },
                     success: function(response) {
                         // Render the table based on the received data
-                        renderTable(response);
-                        updatePagination(response);
+                        if(exportFile==""){
+                            renderTable(response);
+                            updatePagination(response);
+                        }
                     },
                     error: function(error) {
                         console.error('Error fetching data:', error);
@@ -605,7 +610,7 @@
             document.getElementById('loading-message').style.display = 'none';
         }
     </script>
-    <script>
+    <script>//extractData
         function extractData() {
             const userConfirmed = window.confirm('Are you sure you want to extract data from Live NHS? It may take long time to process!');
             if (userConfirmed) {
