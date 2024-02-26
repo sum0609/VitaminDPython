@@ -6,10 +6,10 @@ import os
 from data_processing import fetch_and_process_data
 from classes.nhs_param import NHSParam
 from datetime import datetime
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter,landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
-from reportlab.pdfgen import canvas
+# from reportlab.lib import colors
+# from reportlab.lib.pagesizes import letter,landscape
+# from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+# from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 app.secret_key = 'vitDSession'
