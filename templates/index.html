@@ -115,6 +115,9 @@
                             <option value="8">Items for Vitamin D vs Patients</option>
                             <option value="9">Items for Formation vs Patients</option>
                             <option value="10">Group by Dosage with Formation</option>
+                            <option value="11">Group by Surgery</option>
+                            <option value="12">Group by Surgery - Yearly</option>
+                            <option value="13">Group by Surgery - Monthly</option>
                         </select>
                     </div>
                     <div class="col-3">
@@ -153,20 +156,49 @@
                     </div>
                     
                     <div class="col-3">
-                        <label for="txtSurgery" class="form-label">Surgery</label>
-                        <input type="text" class="form-control" id="txtSurgery"></input>
+                        <label for="selSurgery" class="form-label">Surgery</label>
+                        <!--<input type="text" class="form-control" id="txtSurgery"></input>-->
+                        <select id="selSurgery"  class="form-select" aria-label="Default select example">
+                            <option >Select</option>
+                            {% for practice_name in PRACTICE_NAMES %}
+                                <option value="{{ practice_name_code_mapping[practice_name] }}">{{ practice_name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="col-3">
-                        <label for="txtChemicalSub" class="form-label">Chemical Substance</label>
-                        <input type="text" class="form-control" id="txtChemicalSub"></input>
+                        <!--<label for="txtChemicalSub" class="form-label">Chemical Substance</label>
+                        <input type="text" class="form-control" id="txtChemicalSub"></input>-->
+                        <label for="selChemicalSub" class="form-label">Chemical Substance</label>
+                        <select id="selChemicalSub"  class="form-select" aria-label="Default select example">
+                            <option >Select</option>
+                            {% for CHEMICAL_SUB in CHEMICAL_SUBSTANCE_BNF_DESCR %}
+                                <option>{{ CHEMICAL_SUB }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="col-3">
-                        <label for="txtMedication" class="form-label">Medication</label>
-                        <input type="text" class="form-control" id="txtMedication"></input>
+                        <label for="selMedication" class="form-label">Medication</label>
+                        <!--<<input type="text" class="form-control" id="txtMedication"></input>-->
+                        <select id="selMedication"  class="form-select" aria-label="Default select example">
+                            <option >Select</option>
+                            {% for medication in medications %}
+                                <option>{{ medication }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="col-3">
-                        <label for="txtFormation" class="form-label">Formation</label>
-                        <input type="text" class="form-control" id="txtFormation"></input>
+                        <label for="selFormation" class="form-label">Formation</label>
+                        <!--<input type="text" class="form-control" id="txtFormation"></input>-->
+                        <select id="selFormation"  class="form-select" aria-label="Default select example">
+                            <option >Select</option>
+                            <option>liquid</option>
+                            <option>powder</option>
+                            <option>capsules</option>
+                            <option>tablets</option>
+                            <option>chewable tablets</option>
+                            <option>injection</option>
+                            <option>spray</option>
+                        </select>
                     </div>
                     <div class="col-3 text-end"> <!-- Added text-end class here -->
                         <button type="submit" class="btn btn-primary">Search</button>
@@ -177,8 +209,9 @@
             <div class="row">
                 <!-- Left Column - Scrollable Table -->
                 <div class="panel" >
-                    <div class= "panel-heading" ><h5>Data Explorer</h5>
-                        <a href="#" onclick="loadForm(1,'csv')" id="exportCsv">CSV</a> <!--| <a href="#" onclick="loadForm(1,'pdf')" id="exportPdf">PDF</a>-->
+                    <div class= "panel-heading" >
+                        <h5>Data Explorer</h5>
+                        <a href="#" onclick="loadForm(1,'csv')" id="exportCsv">CSV</a> | <a href="#" onclick="loadForm(1,'pdf')" id="exportPdf">PDF</a>
                     </div>
 
                     <!-- Add a form for selecting page size -->
@@ -205,7 +238,7 @@
                                     <th>POSTCODE</th>
                                     <th>BNF DESCRIPTION</th>
                                     <th>BNF CHAPTER PLUS</th>
-                                    <th>MEDICATION TYPE</th>
+                                    <th>FORMATION</th>
                                     <th>MEDICATION </th>
                                     <th>DOSAGE </th>
                                     <th>QUANTITY </th>
@@ -304,13 +337,13 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            {% if prescription['medication_type'] is none %}
+                                            {% if prescription['formation'] is none %}
                                                 N/A
                                             {% else %}
-                                                {% if prescription['medication_type'] == '' %}
+                                                {% if prescription['formation'] == '' %}
                                                     Empty
                                                 {% else %}
-                                                    {{ prescription['medication_type']|string|default('') }}
+                                                    {{ prescription['formation']|string|default('') }}
                                                 {% endif %}
                                             {% endif %}
                                         </td>
@@ -502,13 +535,13 @@
             console.log("Selected Year:", selectedYear);
             var selectedMonth = $('#slcMonth').val();
             console.log("Selected Month:", selectedMonth);
-            var selectedSurgery = $.trim($('#txtSurgery').val());
+            var selectedSurgery = $.trim($('#selSurgery').val());
             console.log("Selected Surgery:", selectedSurgery);
-            var selectedChemicalSub = $.trim($('#txtChemicalSub').val());
+            var selectedChemicalSub = $('#selChemicalSub').val();
             console.log("Selected Chemical Substance:", selectedChemicalSub);
-            var selectedMedication = $.trim($('#txtMedication').val());
+            var selectedMedication = $.trim($('#selMedication').val());
             console.log("Selected Medication:", selectedMedication);
-            var selectedFormation = $.trim($('#txtFormation').val());
+            var selectedFormation = $.trim($('#selFormation').val());
             console.log("Selected Formation:", selectedFormation);
             
             console.log("Selected page:", pagenumber);

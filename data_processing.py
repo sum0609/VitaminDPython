@@ -1,11 +1,8 @@
 import pandas as pd
 import requests
-from functools import reduce
 import json
 import os
 from datetime import datetime
-
-from urllib.parse import quote
 
 def fetch_and_process_data():
     base_endpoint = 'https://opendata.nhsbsa.net/api/3/action/'

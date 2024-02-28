@@ -1,21 +1,11 @@
-from flask import Flask, render_template, session, jsonify, request
-
+from flask import Flask, render_template,  jsonify, request
 import pandas as pd
 import glob
 import os
 from data_processing import fetch_and_process_data
 from classes.nhs_param import NHSParam
-from datetime import datetime
-# from reportlab.lib import colors
-# from reportlab.lib.pagesizes import letter,landscape
-# from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
-# from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
-app.secret_key = 'vitDSession'
-
-# Fetch and process data
-# prescriptions_df = fetch_and_process_data() 
 
 data_folder = "data"
 file_prefix = "output_"
@@ -35,7 +25,7 @@ else:
 
 # TO SEPERATE MEDICINE ON THE BASIS OF ITS FORM 
 # Define a UDF to categorize medication types based on keywords
-def categorize_medication_type(description):
+def categorize_formation(description):
     keywords = {
         "liquid": ["liquid", "drink", "solution", "syrup", "bottle","drops","drop","soln","oral suspension","dps"],
         "powder": ["powder", "sachets", "sach"],
@@ -68,19 +58,19 @@ def extract_medication_and_dosage(description):
         
     return pd.Series([medication.strip(), dosage.strip()])
 
-prescriptions_df['medication_type'] = prescriptions_df['BNF_DESCRIPTION'].apply(categorize_medication_type)
+prescriptions_df['formation'] = prescriptions_df['BNF_DESCRIPTION'].apply(categorize_formation)
 prescriptions_df['YEAR_MONTH'] = pd.to_datetime(prescriptions_df['YEAR_MONTH'], format='%Y%m')
 prescriptions_df['year'] = prescriptions_df['YEAR_MONTH'].dt.year
 prescriptions_df['month'] = prescriptions_df['YEAR_MONTH'].dt.month
 prescriptions_df[['medication', 'dosage']] = prescriptions_df['BNF_DESCRIPTION'].apply(extract_medication_and_dosage)
 
-liquid_rows = prescriptions_df[prescriptions_df['medication_type'] == "liquid"]
+# liquid_rows = prescriptions_df[prescriptions_df['formation'] == "liquid"]
 
 def get_all_data(param):
     # Define the base selection of columns
     columns_to_select = [
         "year","month", "PRACTICE_NAME", "PRACTICE_CODE","POSTCODE","CHEMICAL_SUBSTANCE_BNF_DESCR","BNF_DESCRIPTION", 
-        "BNF_CHAPTER_PLUS_CODE", "medication_type","medication", "dosage",
+        "BNF_CHAPTER_PLUS_CODE", "formation","medication", "dosage",
         "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
     ]
 
@@ -92,14 +82,14 @@ def get_all_data(param):
         base_query = base_query[base_query['year'] == int(param.selected_year)]
     if param.selected_month != "0":
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    if param.selected_ChemicalSub != "":
+    if param.selected_ChemicalSub != "Select":
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
-    if param.selected_Medication != "":
+    if param.selected_Medication != "Select":
         base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
-    if param.selected_Formation != "":
-        base_query = base_query[base_query['medication_type'].str.contains(param.selected_Formation, case=False, na=False)]
+    if param.selected_Formation != "Select":
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
 
     # Define a window specification with partition_column
     window_spec_all_data = ['year', 'month', 'PRACTICE_NAME', 'CHEMICAL_SUBSTANCE_BNF_DESCR', 'BNF_DESCRIPTION']
@@ -111,7 +101,7 @@ def get_all_data(param):
     base_query = base_query.drop_duplicates(subset=columns_to_select)
     
     # Sort the DataFrame by multiple columns
-    sort_columns = ["year", "month", "PRACTICE_NAME", "CHEMICAL_SUBSTANCE_BNF_DESCR", "BNF_DESCRIPTION","medication", "medication_type"]
+    sort_columns = ["year", "month", "PRACTICE_NAME", "CHEMICAL_SUBSTANCE_BNF_DESCR", "BNF_DESCRIPTION","medication", "formation"]
     base_query = base_query.sort_values(by=sort_columns)
 
     # Calculate the total number of records
@@ -123,17 +113,9 @@ def get_all_data(param):
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
 
-    # Apply pagination
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
-
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
+    
     # Extracting columns and filtered data
     columns = columns_to_select
     headers = [col.replace('_', ' ').upper() for col in columns]
@@ -146,7 +128,7 @@ def get_bnf_descriptions(param):
     grouping_columns_cnt = 2
 
     # Define the base query
-    base_query = liquid_rows.copy()
+    base_query = prescriptions_df.copy()
 
     # Apply filters based on selected_year and selected_month
     if param.selected_year != "0":
@@ -157,20 +139,20 @@ def get_bnf_descriptions(param):
         filter_columns_to_select = filter_columns_to_select + ["month"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    if param.selected_ChemicalSub != "":
+    if param.selected_ChemicalSub != "Select":
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
-    if param.selected_Medication != "":
+    if param.selected_Medication != "Select":
         filter_columns_to_select = filter_columns_to_select + ["medication"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
-    if param.selected_Formation != "":
-        filter_columns_to_select = filter_columns_to_select + ["medication_type"]
+    if param.selected_Formation != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["formation"]
         grouping_columns_cnt += 1
-        base_query = base_query[base_query['medication_type'].str.contains(param.selected_Formation, case=False, na=False)]
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
 
     groupby_columns = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR","BNF_DESCRIPTION"]
     
@@ -196,17 +178,9 @@ def get_bnf_descriptions(param):
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
     
-    # Apply pagination
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
-
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
+    
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
     headers = [col.replace('_', ' ').upper() for col in columns]
@@ -230,22 +204,22 @@ def get_BNF_CHAPTER_PLUS_CODE(param):
         filter_columns_to_select = filter_columns_to_select + ["month"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    if param.selected_ChemicalSub != "":
+    if param.selected_ChemicalSub != "Select":
         filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
-    if param.selected_Medication != "":
+    if param.selected_Medication != "Select":
         filter_columns_to_select = filter_columns_to_select + ["medication"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
-    if param.selected_Formation != "":
-        filter_columns_to_select = filter_columns_to_select + ["medication_type"]
+    if param.selected_Formation != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["formation"]
         grouping_columns_cnt += 1
-        base_query = base_query[base_query['medication_type'].str.contains(sparam.elected_Formation, case=False, na=False)]
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
 
     groupby_columns = filter_columns_to_select + ["BNF_CHAPTER_PLUS_CODE"]
     
@@ -271,16 +245,8 @@ def get_BNF_CHAPTER_PLUS_CODE(param):
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
     
-    # Apply pagination
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -294,7 +260,7 @@ def get_MEDICATION_Name(param):
     grouping_columns_cnt = 1
 
     # Define the base query
-    base_query = liquid_rows.copy()
+    base_query = prescriptions_df.copy()
     
     # Apply filters based on selected_year and selected_month
     if param.selected_year != "0":
@@ -305,20 +271,20 @@ def get_MEDICATION_Name(param):
         filter_columns_to_select = filter_columns_to_select + ["month"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    if param.selected_ChemicalSub != "":
+    if param.selected_ChemicalSub != "Select":
         filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
-    if param.selected_Medication != "":
+    if param.selected_Medication != "Select":
         base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
-    if param.selected_Formation != "":
-        filter_columns_to_select = filter_columns_to_select + ["medication_type"]
+    if param.selected_Formation != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["formation"]
         grouping_columns_cnt += 1
-        base_query = base_query[base_query['medication_type'].str.contains(param.selected_Formation, case=False, na=False)]
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
 
     groupby_columns = filter_columns_to_select + ["medication"]
     
@@ -344,16 +310,8 @@ def get_MEDICATION_Name(param):
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
     
-    # Apply pagination
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -378,20 +336,20 @@ def get_Formation(param):
         filter_columns_to_select = filter_columns_to_select + ["month"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    if param.selected_ChemicalSub != "":
+    if param.selected_ChemicalSub != "Select":
         filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
-    if param.selected_Medication != "":
+    if param.selected_Medication != "Select":
         base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
-    if param.selected_Formation != "":
-        base_query = base_query[base_query['medication_type'].str.contains(param.selected_Formation, case=False, na=False)]
+    if param.selected_Formation != "Select":
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
 
-    groupby_columns = filter_columns_to_select + ["medication","medication_type"]
+    groupby_columns = filter_columns_to_select + ["medication","formation"]
     
     base_query = base_query.groupby(groupby_columns).agg({
         'QUANTITY': 'sum',
@@ -415,16 +373,8 @@ def get_Formation(param):
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
     
-    # Apply pagination
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -450,20 +400,20 @@ def get_CHEMICAL_SUB(param):
         filter_columns_to_select = filter_columns_to_select + ["month"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    if param.selected_ChemicalSub != "":
+    if param.selected_ChemicalSub != "Select":
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
-    if param.selected_Medication != "":
+    if param.selected_Medication != "Select":
         filter_columns_to_select = filter_columns_to_select + ["medication"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
-    if param.selected_Formation != "":
-        base_query = base_query[base_query['medication_type'].str.contains(param.selected_Formation, case=False, na=False)]
+    if param.selected_Formation != "Select":
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
 
-    groupby_columns = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR","medication_type"]
+    groupby_columns = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR","formation"]
     
     base_query = base_query.groupby(groupby_columns).agg({
         'QUANTITY': 'sum',
@@ -488,16 +438,8 @@ def get_CHEMICAL_SUB(param):
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
     
-    # Apply pagination
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -541,7 +483,7 @@ def get_SurgeryPatient(param):
         filter_columns_to_select = filter_columns_to_select + ["month"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
@@ -552,9 +494,9 @@ def get_SurgeryPatient(param):
     #     grouping_columns_cnt += 1
     #     base_query = base_query[base_query['medication'].str.contains(selected_Medication, case=False, na=False)]
     # if selected_Formation != "":
-    #     filter_columns_to_select = filter_columns_to_select + ["medication_type"]
+    #     filter_columns_to_select = filter_columns_to_select + ["formation"]
     #     grouping_columns_cnt += 1
-    #     base_query = base_query[base_query['medication_type'].str.contains(selected_Formation, case=False, na=False)]
+    #     base_query = base_query[base_query['formation'].str.contains(selected_Formation, case=False, na=False)]
 
     base_query = base_query[["year", "month", "PRACTICE_CODE", "PRACTICE_NAME", "Patient_count"]]
 
@@ -571,16 +513,8 @@ def get_SurgeryPatient(param):
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
     
-    # Apply pagination
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -620,20 +554,20 @@ def get_ItemsVsPatient(param):
         base_query = base_query[base_query['year'] == int(param.selected_year)]
     if param.selected_month != "0":
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
     # if selected_ChemicalSub != "":
     #     filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
     #     grouping_columns_cnt += 1
     #     base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
-    if param.selected_Medication != "":
+    if param.selected_Medication != "Select":
         filter_columns_to_select = filter_columns_to_select + ["medication"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
-    if param.selected_Formation != "":
-        filter_columns_to_select = filter_columns_to_select + ["medication_type"]
+    if param.selected_Formation != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["formation"]
         grouping_columns_cnt += 1
-        base_query = base_query[base_query['medication_type'].str.contains(param.selected_Formation, case=False, na=False)]
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
 
     groupby_columns = filter_columns_to_select + ["year","month","PRACTICE_NAME","PRACTICE_CODE"]
     
@@ -661,16 +595,8 @@ def get_ItemsVsPatient(param):
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
     
-    # Apply pagination
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -707,18 +633,18 @@ def get_FormationVsPatient(param):
         base_query = base_query[base_query['year'] == int(param.selected_year)]
     if param.selected_month != "0":
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    if param.selected_ChemicalSub != "":
+    if param.selected_ChemicalSub != "Select":
         filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
-    if param.selected_Medication != "":
+    if param.selected_Medication != "Select":
         base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
-    if param.selected_Formation != "":
-        base_query = base_query[base_query['medication_type'].str.contains(param.selected_Formation, case=False, na=False)]
+    if param.selected_Formation != "Select":
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
 
-    groupby_columns = filter_columns_to_select + ["year","month","PRACTICE_NAME","PRACTICE_CODE","medication","medication_type"]
+    groupby_columns = filter_columns_to_select + ["year","month","PRACTICE_NAME","PRACTICE_CODE","medication","formation"]
     
     base_query = base_query.groupby(groupby_columns).agg({
         # 'QUANTITY': 'sum',
@@ -742,16 +668,8 @@ def get_FormationVsPatient(param):
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
     
-    # Apply pagination
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
     
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
@@ -776,20 +694,20 @@ def get_DosageWithFormation(param):
         filter_columns_to_select = filter_columns_to_select + ["month"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['month'] == int(param.selected_month)]
-    if param.selected_Surgery != "":
+    if param.selected_Surgery != "Select":
         filter_columns_to_select = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
         grouping_columns_cnt += 2
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    if param.selected_ChemicalSub != "":
+    if param.selected_ChemicalSub != "Select":
         filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
-    if param.selected_Medication != "":
+    if param.selected_Medication != "Select":
         base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
-    if param.selected_Formation != "":
-        base_query = base_query[base_query['medication_type'].str.contains(param.selected_Formation, case=False, na=False)]
+    if param.selected_Formation != "Select":
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
 
-    groupby_columns = filter_columns_to_select + ["medication","medication_type","dosage"]
+    groupby_columns = filter_columns_to_select + ["medication","formation","dosage"]
     
     base_query = base_query.groupby(groupby_columns).agg({
         'QUANTITY': 'sum',
@@ -813,61 +731,261 @@ def get_DosageWithFormation(param):
 
     # Calculate the offset based on page_number and page_size
     offset = (param.page_number - 1) * param.page_size
-
-    print(f"Exporting CSV: {param.exportFile}")
     
-    if(param.exportFile=="csv"):
-        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_file_name = f"exported_data_{current_datetime}.csv"
-        csv_file_path = os.path.join(downloads_dir, csv_file_name)
-        print(f"CSV File Path: {csv_file_path}")
-        result = base_query
-        result.to_csv(csv_file_path, index=False)
-        if os.path.exists(csv_file_path):
-            print("CSV file successfully created.")
-        else:
-            print("Error: CSV file creation failed.")
-            
-    # elif(param.exportFile=="pdf"):
-    #     result = base_query
-    #     data = [result.columns.tolist()] + result.values.tolist()
-        
-    #     downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-    #     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-    #     pdf_file_name = f"exported_data_{current_datetime}.pdf"
-    #     pdf_file_path = os.path.join(downloads_dir, pdf_file_name)
-        
-    #     col_widths = [150, 100, 100, 100, 100, 100, 150, 100, 100]
-    #     pdf = SimpleDocTemplate(pdf_file_path, pagesize=landscape(letter))
-
-    #     # Create a table with data
-    #     table = Table(data, colWidths=col_widths)
-
-    #     # Apply styles to the table
-    #     style = TableStyle([
-    #         ('BACKGROUND', (0, 0), (-1, 0), '#eeeeee'),
-    #         ('TEXTCOLOR', (0, 0), (-1, 0), '#333333'),
-    #         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-    #         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-    #         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-    #         ('BACKGROUND', (0, 1), (-1, -1), '#ffffff'),
-    #         ('GRID', (0, 0), (-1, -1), 1, '#888888'),
-    #     ])
-
-    #     table.setStyle(style)
-
-    #     # Build the PDF document
-    #     pdf.build([table])
-    else:
-        result = base_query.iloc[offset: offset + param.page_size]
-        
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
+    
     # Extracting columns and filtered data
     columns = base_query.columns.tolist()
     headers = [col.replace('_', ' ').upper() for col in columns]
     filtered_data = result.to_dict(orient='records')
     
     return headers, columns, filtered_data , total_pages, param.page_number
+
+def get_Surgery(param):
+    
+    prefix = "patient_count_"
+    csv = glob.glob(os.path.join("filter", f"{prefix}*.csv"))
+    if csv:
+        # Extract modification times for each file
+        file_modification_times = [(f, os.path.getmtime(f)) for f in csv]
+
+        # Sort files by modification time and get the latest one
+        latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
+
+        # Read the CSV file into a Pandas DataFrame
+        patient_count_df = pd.read_csv(latest_csv_file)
+    else:
+        csv_file_path = "filter/patient_count.csv"
+        patient_count_df = pd.read_csv(csv_file_path)
+        
+    # Define the base selection of columns
+    columns_to_select = [
+        "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
+    ]
+    filter_columns_to_select = []
+    grouping_columns_cnt = 2
+
+    # Define the base query
+    base_query = prescriptions_df.copy()
+    # Apply filters based on selected_year and selected_month
+    if param.selected_year != "0":
+        filter_columns_to_select = ["year"] + filter_columns_to_select
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['year'] == int(param.selected_year)]
+    if param.selected_month != "0":
+        filter_columns_to_select = filter_columns_to_select + ["month"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['month'] == int(param.selected_month)]
+    if param.selected_Surgery != "Select":
+        base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
+    if param.selected_ChemicalSub != "Select":
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
+    if param.selected_Medication != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["medication"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
+    if param.selected_Formation != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["formation"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
+
+    groupby_columns = filter_columns_to_select + ["PRACTICE_NAME","PRACTICE_CODE"]
+    
+    base_query = base_query.groupby(groupby_columns).agg({
+        'QUANTITY': 'sum',
+        'ITEMS': ['sum', 'count'],
+        'TOTAL_QUANTITY': 'sum',
+        'NIC': 'sum',
+        'ACTUAL_COST': 'sum',
+    }).reset_index()
+    
+    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    
+    # Rename the columns
+    base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
+    
+
+    # Calculate the total number of records
+    total_records = len(base_query)
+
+    # Calculate the total pages
+    total_pages = (total_records + param.page_size - 1) // param.page_size
+
+    # Calculate the offset based on page_number and page_size
+    offset = (param.page_number - 1) * param.page_size
+    
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
+    
+    # Extracting columns and filtered data
+    columns = base_query.columns.tolist()
+    headers = [col.replace('_', ' ').upper() for col in columns]
+    filtered_data = result.to_dict(orient='records')
+
+    return headers, columns, filtered_data , total_pages, param.page_number
+
+def get_Surgery_year(param):
+    
+    prefix = "patient_count_"
+    csv = glob.glob(os.path.join("filter", f"{prefix}*.csv"))
+    if csv:
+        # Extract modification times for each file
+        file_modification_times = [(f, os.path.getmtime(f)) for f in csv]
+
+        # Sort files by modification time and get the latest one
+        latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
+
+        # Read the CSV file into a Pandas DataFrame
+        patient_count_df = pd.read_csv(latest_csv_file)
+    else:
+        csv_file_path = "filter/patient_count.csv"
+        patient_count_df = pd.read_csv(csv_file_path)
+        
+    # Define the base selection of columns
+    columns_to_select = [
+        "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
+    ]
+    filter_columns_to_select = []
+    grouping_columns_cnt = 3
+
+    # Define the base query
+    base_query = prescriptions_df.copy()
+    # Apply filters based on selected_year and selected_month
+    if param.selected_year != "0":
+        base_query = base_query[base_query['year'] == int(param.selected_year)]
+    if param.selected_month != "0":
+        filter_columns_to_select = filter_columns_to_select + ["month"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['month'] == int(param.selected_month)]
+    if param.selected_Surgery != "Select":
+        base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
+    if param.selected_ChemicalSub != "Select":
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
+    if param.selected_Medication != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["medication"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
+    if param.selected_Formation != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["formation"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
+
+    groupby_columns = filter_columns_to_select + ["year","PRACTICE_NAME","PRACTICE_CODE"]
+    
+    base_query = base_query.groupby(groupby_columns).agg({
+        'QUANTITY': 'sum',
+        'ITEMS': ['sum', 'count'],
+        'TOTAL_QUANTITY': 'sum',
+        'NIC': 'sum',
+        'ACTUAL_COST': 'sum',
+    }).reset_index()
+    
+    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    
+    # Rename the columns
+    base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
+    
+
+    # Calculate the total number of records
+    total_records = len(base_query)
+
+    # Calculate the total pages
+    total_pages = (total_records + param.page_size - 1) // param.page_size
+
+    # Calculate the offset based on page_number and page_size
+    offset = (param.page_number - 1) * param.page_size
+    
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
+    
+    # Extracting columns and filtered data
+    columns = base_query.columns.tolist()
+    headers = [col.replace('_', ' ').upper() for col in columns]
+    filtered_data = result.to_dict(orient='records')
+
+    return headers, columns, filtered_data , total_pages, param.page_number
+
+
+def get_Surgery_month(param):
+    
+    prefix = "patient_count_"
+    csv = glob.glob(os.path.join("filter", f"{prefix}*.csv"))
+    if csv:
+        # Extract modification times for each file
+        file_modification_times = [(f, os.path.getmtime(f)) for f in csv]
+
+        # Sort files by modification time and get the latest one
+        latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
+
+        # Read the CSV file into a Pandas DataFrame
+        patient_count_df = pd.read_csv(latest_csv_file)
+    else:
+        csv_file_path = "filter/patient_count.csv"
+        patient_count_df = pd.read_csv(csv_file_path)
+        
+    # Define the base selection of columns
+    columns_to_select = [
+        "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
+    ]
+    filter_columns_to_select = []
+    grouping_columns_cnt = 4
+
+    # Define the base query
+    base_query = prescriptions_df.copy()
+    # Apply filters based on selected_year and selected_month
+    if param.selected_year != "0":
+        base_query = base_query[base_query['year'] == int(param.selected_year)]
+    if param.selected_month != "0":
+        base_query = base_query[base_query['month'] == int(param.selected_month)]
+    if param.selected_Surgery != "Select":
+        base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
+    if param.selected_ChemicalSub != "Select":
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
+    if param.selected_Medication != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["medication"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['medication'].str.contains(param.selected_Medication, case=False, na=False)]
+    if param.selected_Formation != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["formation"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['formation'].str.contains(param.selected_Formation, case=False, na=False)]
+
+    groupby_columns = filter_columns_to_select + ["year","month","PRACTICE_NAME","PRACTICE_CODE"]
+    
+    base_query = base_query.groupby(groupby_columns).agg({
+        'QUANTITY': 'sum',
+        'ITEMS': ['sum', 'count'],
+        'TOTAL_QUANTITY': 'sum',
+        'NIC': 'sum',
+        'ACTUAL_COST': 'sum',
+    }).reset_index()
+    
+    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    
+    # Rename the columns
+    base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
+    
+
+    # Calculate the total number of records
+    total_records = len(base_query)
+
+    # Calculate the total pages
+    total_pages = (total_records + param.page_size - 1) // param.page_size
+
+    # Calculate the offset based on page_number and page_size
+    offset = (param.page_number - 1) * param.page_size
+    
+    #eporting file to csv/pdf
+    result = param.exportFileCsvPdf(base_query,offset)
+    
+    # Extracting columns and filtered data
+    columns = base_query.columns.tolist()
+    headers = [col.replace('_', ' ').upper() for col in columns]
+    filtered_data = result.to_dict(orient='records')
+
+    return headers, columns, filtered_data , total_pages, param.page_number
+
 
 # Define routes and views
 @app.route('/', methods=['GET'])
@@ -912,6 +1030,12 @@ def home():
             headers, columns, filtered_data, total_pages, current_page = get_FormationVsPatient(param)
         elif selected_value == "10" :
             headers, columns, filtered_data, total_pages, current_page = get_DosageWithFormation(param)
+        elif selected_value == "11" :
+            headers, columns, filtered_data, total_pages, current_page = get_Surgery(param)
+        elif selected_value == "12" :
+            headers, columns, filtered_data, total_pages, current_page = get_Surgery_year(param)
+        elif selected_value == "13" :
+            headers, columns, filtered_data, total_pages, current_page = get_Surgery_month(param)
 
         # Calculate prev_page_number and next_page_number
         prev_page_number = max(1, page_number - 1)
@@ -929,11 +1053,24 @@ def home():
         }
         return jsonify({'response': response, 'all_data_param': all_data_param})
     else:
-        return render_template('index.html')
+        csv_file_path_BNF_DESCR = 'filter/vitamind.csv' 
+        csv_data_BNF_DESCR = pd.read_csv(csv_file_path_BNF_DESCR)
+        CHEMICAL_SUBSTANCE_BNF_DESCR = csv_data_BNF_DESCR['CHEMICAL_SUBSTANCE_BNF_DESCR'].astype(str).unique()
+        CHEMICAL_SUBSTANCE_BNF_DESCR.sort()
+        medications = prescriptions_df['medication'].unique()
+        medications.sort()
+        
+        csv_file_path_PRACTICE_CODE = 'filter/surgery.csv' 
+        csv_data_PRACTICE_CODE = pd.read_csv(csv_file_path_PRACTICE_CODE)
+        practice_name_code_mapping = dict(zip(csv_data_PRACTICE_CODE['PRACTICE_NAME'], csv_data_PRACTICE_CODE['PRACTICE_CODE']))
+        PRACTICE_NAMES = sorted(csv_data_PRACTICE_CODE['PRACTICE_NAME'])
+
+        return render_template('index.html', medications=medications, CHEMICAL_SUBSTANCE_BNF_DESCR=CHEMICAL_SUBSTANCE_BNF_DESCR, PRACTICE_NAMES=PRACTICE_NAMES, practice_name_code_mapping=practice_name_code_mapping )
 
 @app.route('/extractData', methods=['GET'])
 def extractData():
     result = fetch_and_process_data()
     return jsonify(result) 
+
 if __name__ == '__main__':
     app.run(debug=True, threaded=False)
