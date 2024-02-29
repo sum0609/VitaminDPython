@@ -211,7 +211,9 @@
                 <div class="panel" >
                     <div class= "panel-heading" >
                         <h5>Data Explorer</h5>
-                        <a href="#" onclick="loadForm(1,'csv')" id="exportCsv">CSV</a> | <a href="#" onclick="loadForm(1,'pdf')" id="exportPdf">PDF</a>
+                        <!--<a href="#" onclick="loadForm(1,'csv')" id="exportCsv">CSV</a> | <a href="#" onclick="loadForm(1,'pdf')" id="exportPdf">PDF</a>-->
+                        <!--<a href="#" onclick="exportCsvPdf('csv')" download="prescriptions.csv">CSV</a> | <a href="#" onclick="exportCsvPdf('pdf')" download="prescriptions.pdf">PDF</a>-->
+                        <a href="#" id="csvLink" onclick="exportCsvPdf('csv')" >CSV</a> | <a href="#" id="pdfLink" onclick="exportCsvPdf('pdf')" >PDF</a>
                     </div>
 
                     <!-- Add a form for selecting page size -->
@@ -461,7 +463,8 @@
     <!-- HTML/CSS for loading message or spinner -->
     <div id="loading-message">
         <p id="loading-text">Loading...</p>
-      </div>
+    </div>
+    
     <script>//for pagination
         // Assuming you have a container element for the pagination
         var paginationContainer = document.querySelector('.pagination');
@@ -550,7 +553,7 @@
             console.log("Selected PageSize:", selectedPageSize);
             
             // Check if any selection is made
-            if (selectedValue|| selectedValue === '0') {
+            //if (selectedValue|| selectedValue === '0') {
                 // Make an AJAX request when the form is submitted
                 $.ajax({
                     type: 'GET',
@@ -573,10 +576,9 @@
                     },
                     success: function(response) {
                         // Render the table based on the received data
-                        if(exportFile==""){
+                        
                             renderTable(response);
                             updatePagination(response);
-                        }
                     },
                     error: function(error) {
                         console.error('Error fetching data:', error);
@@ -586,11 +588,38 @@
                         hideLoading();
                     }
                 });
-            } else {
+            //} else {
                 // Handle the case when no selection is made (optional)
-                console.log('No selection made. Skipping AJAX request.');
+               // console.log('No selection made. Skipping AJAX request.');
                 // Hide loading message or spinner after data is loaded
-                hideLoading();
+             //   hideLoading();
+            //}
+        }
+    </script>
+
+    <script>// exportCsvPdf
+        function exportCsvPdf(exportFile){
+            // Get the selected value from the dropdown
+            var selectedValue = $('#mySelect').val();
+            var selectedYear = $('#slcYear').val();
+            var selectedMonth = $('#slcMonth').val();
+            var selectedSurgery = $.trim($('#selSurgery').val());
+            var selectedChemicalSub = $('#selChemicalSub').val();
+            var selectedMedication = $.trim($('#selMedication').val());
+            var selectedFormation = $.trim($('#selFormation').val());
+
+            var url = '/download_csv_pdf?selectedValue=' + selectedValue + '&selectedYear=' + selectedYear 
+            + '&selectedMonth=' + selectedMonth + '&selectedSurgery=' + selectedSurgery 
+            + '&selectedChemicalSub=' + selectedChemicalSub + '&selectedMedication=' + selectedMedication 
+            + '&selectedFormation=' + selectedFormation + '&exportFile=' + exportFile;
+
+            if (exportFile=='csv'){
+                document.getElementById('csvLink').href = url;
+                document.getElementById('csvLink').click();
+            }
+            else{
+                document.getElementById('pdfLink').href = url;
+                document.getElementById('pdfLink').click();
             }
         }
     </script>

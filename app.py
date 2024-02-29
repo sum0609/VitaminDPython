@@ -1,27 +1,21 @@
-from flask import Flask, render_template,  jsonify, request
+from flask import Flask, render_template,  jsonify, request, send_file
 import pandas as pd
 import glob
 import os
 from data_processing import fetch_and_process_data
 from classes.nhs_param import NHSParam
 
+from flask import Flask, render_template, send_file
+import pandas as pd
+from reportlab.lib.pagesizes import letter, landscape, A3, A1
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.lib import colors
+
+
 app = Flask(__name__)
+app.secret_key = 'vitamind'
 
-data_folder = "data"
-file_prefix = "output_"
-csv_files = glob.glob(os.path.join(data_folder, f"{file_prefix}*.csv"))
-if csv_files:
-    # Extract modification times for each file
-    file_modification_times = [(f, os.path.getmtime(f)) for f in csv_files]
-
-    # Sort files by modification time and get the latest one
-    latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
-
-    # Read the CSV file into a Pandas DataFrame
-    prescriptions_df = pd.read_csv(latest_csv_file)
-else:
-    csv_file_path = "data/nhs.csv"
-    prescriptions_df = pd.read_csv(csv_file_path)
+prescriptions_df = pd.DataFrame()
 
 # TO SEPERATE MEDICINE ON THE BASIS OF ITS FORM 
 # Define a UDF to categorize medication types based on keywords
@@ -58,15 +52,11 @@ def extract_medication_and_dosage(description):
         
     return pd.Series([medication.strip(), dosage.strip()])
 
-prescriptions_df['formation'] = prescriptions_df['BNF_DESCRIPTION'].apply(categorize_formation)
-prescriptions_df['YEAR_MONTH'] = pd.to_datetime(prescriptions_df['YEAR_MONTH'], format='%Y%m')
-prescriptions_df['year'] = prescriptions_df['YEAR_MONTH'].dt.year
-prescriptions_df['month'] = prescriptions_df['YEAR_MONTH'].dt.month
-prescriptions_df[['medication', 'dosage']] = prescriptions_df['BNF_DESCRIPTION'].apply(extract_medication_and_dosage)
-
 # liquid_rows = prescriptions_df[prescriptions_df['formation'] == "liquid"]
 
 def get_all_data(param):
+    
+    global prescriptions_df
     # Define the base selection of columns
     columns_to_select = [
         "year","month", "PRACTICE_NAME", "PRACTICE_CODE","POSTCODE","CHEMICAL_SUBSTANCE_BNF_DESCR","BNF_DESCRIPTION", 
@@ -103,27 +93,11 @@ def get_all_data(param):
     # Sort the DataFrame by multiple columns
     sort_columns = ["year", "month", "PRACTICE_NAME", "CHEMICAL_SUBSTANCE_BNF_DESCR", "BNF_DESCRIPTION","medication", "formation"]
     base_query = base_query.sort_values(by=sort_columns)
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = columns_to_select
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number 
+    return base_query, columns_to_select
 
 def get_bnf_descriptions(param):
+    
+    global prescriptions_df
     filter_columns_to_select = []
     grouping_columns_cnt = 2
 
@@ -168,27 +142,11 @@ def get_bnf_descriptions(param):
     
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
+    return base_query, base_query.columns.tolist()
 
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number 
- 
 def get_BNF_CHAPTER_PLUS_CODE(param):
+    
+    global prescriptions_df
     filter_columns_to_select = []
     grouping_columns_cnt = 1
 
@@ -235,27 +193,11 @@ def get_BNF_CHAPTER_PLUS_CODE(param):
     
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number 
+    return base_query, base_query.columns.tolist()
  
 def get_MEDICATION_Name(param):
+    
+    global prescriptions_df
     filter_columns_to_select = []
     grouping_columns_cnt = 1
 
@@ -300,27 +242,11 @@ def get_MEDICATION_Name(param):
     
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number 
+    return base_query, base_query.columns.tolist()
  
 def get_Formation(param):
+    
+    global prescriptions_df
     filter_columns_to_select = []
     grouping_columns_cnt = 2
 
@@ -363,28 +289,11 @@ def get_Formation(param):
     
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number
+    return base_query, base_query.columns.tolist()
 
 def get_CHEMICAL_SUB(param):
     
+    global prescriptions_df
     filter_columns_to_select = []
     grouping_columns_cnt = 2
 
@@ -428,41 +337,12 @@ def get_CHEMICAL_SUB(param):
     
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number
+    return base_query, base_query.columns.tolist()
 
 def get_SurgeryPatient(param):
-    prefix = "patient_count_"
-    csv = glob.glob(os.path.join("filter", f"{prefix}*.csv"))
-    if csv:
-        # Extract modification times for each file
-        file_modification_times = [(f, os.path.getmtime(f)) for f in csv]
-
-        # Sort files by modification time and get the latest one
-        latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
-
-        # Read the CSV file into a Pandas DataFrame
-        patient_count_df = pd.read_csv(latest_csv_file)
-    else:
-        csv_file_path = "filter/patient_count.csv"
-        patient_count_df = pd.read_csv(csv_file_path)
+    
+    global prescriptions_df
+    patient_count_df = param.getPatientCount_from_filter()
     
     csv_file_path_PRACTICE_CODE = 'filter/surgery.csv' 
     csv_data_PRACTICE_CODE = pd.read_csv(csv_file_path_PRACTICE_CODE)
@@ -503,47 +383,13 @@ def get_SurgeryPatient(param):
     sort_columns = ["year", "month", "PRACTICE_NAME"]
     # sort_columns = ["year", "month", "PRACTICE_CODE"]
     base_query = base_query.sort_values(by=sort_columns)
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number
+    return base_query, base_query.columns.tolist()
 
 def get_ItemsVsPatient(param):
     
-    prefix = "patient_count_"
-    csv = glob.glob(os.path.join("filter", f"{prefix}*.csv"))
-    if csv:
-        # Extract modification times for each file
-        file_modification_times = [(f, os.path.getmtime(f)) for f in csv]
-
-        # Sort files by modification time and get the latest one
-        latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
-
-        # Read the CSV file into a Pandas DataFrame
-        patient_count_df = pd.read_csv(latest_csv_file)
-    else:
-        csv_file_path = "filter/patient_count.csv"
-        patient_count_df = pd.read_csv(csv_file_path)
-        
-    # Define the base selection of columns
-    columns_to_select = [
-        "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
-    ]
+    global prescriptions_df
+    patient_count_df = param.getPatientCount_from_filter()  
+    
     filter_columns_to_select = []
     grouping_columns_cnt = 4
 
@@ -556,10 +402,10 @@ def get_ItemsVsPatient(param):
         base_query = base_query[base_query['month'] == int(param.selected_month)]
     if param.selected_Surgery != "Select":
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    # if selected_ChemicalSub != "":
-    #     filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
-    #     grouping_columns_cnt += 1
-    #     base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
+    if param.selected_ChemicalSub != "":
+        filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
+        grouping_columns_cnt += 1
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
     if param.selected_Medication != "Select":
         filter_columns_to_select = filter_columns_to_select + ["medication"]
         grouping_columns_cnt += 1
@@ -584,44 +430,13 @@ def get_ItemsVsPatient(param):
 
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-    # base_query.columns = base_query.columns + ["ITEMS_per_Patient_count_1000"]
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number
+    return base_query, base_query.columns.tolist()
 
 def get_FormationVsPatient(param):
     
-    prefix = "patient_count_"
-    csv = glob.glob(os.path.join("filter", f"{prefix}*.csv"))
-    if csv:
-        # Extract modification times for each file
-        file_modification_times = [(f, os.path.getmtime(f)) for f in csv]
-
-        # Sort files by modification time and get the latest one
-        latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
-
-        # Read the CSV file into a Pandas DataFrame
-        patient_count_df = pd.read_csv(latest_csv_file)
-    else:
-        csv_file_path = "filter/patient_count.csv"
-        patient_count_df = pd.read_csv(csv_file_path)
-        
+    global prescriptions_df
+    patient_count_df = param.getPatientCount_from_filter()
+    
     filter_columns_to_select = []
     grouping_columns_cnt = 6
 
@@ -658,27 +473,11 @@ def get_FormationVsPatient(param):
 
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number
+    return base_query, base_query.columns.tolist()
 
 def get_DosageWithFormation(param):
+    
+    global prescriptions_df
     filter_columns_to_select = []
     grouping_columns_cnt = 3
 
@@ -722,47 +521,13 @@ def get_DosageWithFormation(param):
     
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-    
-    return headers, columns, filtered_data , total_pages, param.page_number
+    return base_query, base_query.columns.tolist()
 
 def get_Surgery(param):
     
-    prefix = "patient_count_"
-    csv = glob.glob(os.path.join("filter", f"{prefix}*.csv"))
-    if csv:
-        # Extract modification times for each file
-        file_modification_times = [(f, os.path.getmtime(f)) for f in csv]
-
-        # Sort files by modification time and get the latest one
-        latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
-
-        # Read the CSV file into a Pandas DataFrame
-        patient_count_df = pd.read_csv(latest_csv_file)
-    else:
-        csv_file_path = "filter/patient_count.csv"
-        patient_count_df = pd.read_csv(csv_file_path)
-        
-    # Define the base selection of columns
-    columns_to_select = [
-        "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
-    ]
+    global prescriptions_df
+    patient_count_df = param.getPatientCount_from_filter()
+    
     filter_columns_to_select = []
     grouping_columns_cnt = 2
 
@@ -773,10 +538,12 @@ def get_Surgery(param):
         filter_columns_to_select = ["year"] + filter_columns_to_select
         grouping_columns_cnt += 1
         base_query = base_query[base_query['year'] == int(param.selected_year)]
+        patient_count_df = patient_count_df[patient_count_df['year'] == int(param.selected_year)]
     if param.selected_month != "0":
         filter_columns_to_select = filter_columns_to_select + ["month"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['month'] == int(param.selected_month)]
+        patient_count_df = patient_count_df[patient_count_df['month'] == int(param.selected_year)]
     if param.selected_Surgery != "Select":
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
     if param.selected_ChemicalSub != "Select":
@@ -794,58 +561,28 @@ def get_Surgery(param):
     
     base_query = base_query.groupby(groupby_columns).agg({
         'QUANTITY': 'sum',
-        'ITEMS': ['sum', 'count'],
+        'ITEMS': 'sum',
         'TOTAL_QUANTITY': 'sum',
         'NIC': 'sum',
         'ACTUAL_COST': 'sum',
     }).reset_index()
     
-    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    patient_count_df = patient_count_df.groupby(["PRACTICE_CODE"]).agg({
+        'Patient_count': 'sum'
+    }).reset_index()
+    base_query = pd.merge(base_query,patient_count_df, on=['PRACTICE_CODE'], how='inner')
+    
+    # base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
     
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-    
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number
+    return base_query, base_query.columns.tolist()
 
 def get_Surgery_year(param):
     
-    prefix = "patient_count_"
-    csv = glob.glob(os.path.join("filter", f"{prefix}*.csv"))
-    if csv:
-        # Extract modification times for each file
-        file_modification_times = [(f, os.path.getmtime(f)) for f in csv]
-
-        # Sort files by modification time and get the latest one
-        latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
-
-        # Read the CSV file into a Pandas DataFrame
-        patient_count_df = pd.read_csv(latest_csv_file)
-    else:
-        csv_file_path = "filter/patient_count.csv"
-        patient_count_df = pd.read_csv(csv_file_path)
-        
-    # Define the base selection of columns
-    columns_to_select = [
-        "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
-    ]
+    global prescriptions_df
+    patient_count_df = param.getPatientCount_from_filter()
+    
     filter_columns_to_select = []
     grouping_columns_cnt = 3
 
@@ -854,13 +591,17 @@ def get_Surgery_year(param):
     # Apply filters based on selected_year and selected_month
     if param.selected_year != "0":
         base_query = base_query[base_query['year'] == int(param.selected_year)]
+        patient_count_df = patient_count_df[patient_count_df['year'] == int(param.selected_year)]
     if param.selected_month != "0":
         filter_columns_to_select = filter_columns_to_select + ["month"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['month'] == int(param.selected_month)]
+        patient_count_df = patient_count_df[patient_count_df['month'] == int(param.selected_year)]
     if param.selected_Surgery != "Select":
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
     if param.selected_ChemicalSub != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
+        grouping_columns_cnt += 1
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
     if param.selected_Medication != "Select":
         filter_columns_to_select = filter_columns_to_select + ["medication"]
@@ -875,59 +616,27 @@ def get_Surgery_year(param):
     
     base_query = base_query.groupby(groupby_columns).agg({
         'QUANTITY': 'sum',
-        'ITEMS': ['sum', 'count'],
+        'ITEMS': 'sum',
         'TOTAL_QUANTITY': 'sum',
         'NIC': 'sum',
         'ACTUAL_COST': 'sum',
     }).reset_index()
     
-    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    patient_count_df = patient_count_df.groupby(["PRACTICE_CODE","year"]).agg({
+        'Patient_count': 'sum'
+    }).reset_index()
+    
+    base_query = pd.merge(base_query,patient_count_df, on=['PRACTICE_CODE','year'], how='inner')
     
     # Rename the columns
     base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-    
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number
-
+    return base_query, base_query.columns.tolist()
 
 def get_Surgery_month(param):
     
-    prefix = "patient_count_"
-    csv = glob.glob(os.path.join("filter", f"{prefix}*.csv"))
-    if csv:
-        # Extract modification times for each file
-        file_modification_times = [(f, os.path.getmtime(f)) for f in csv]
-
-        # Sort files by modification time and get the latest one
-        latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
-
-        # Read the CSV file into a Pandas DataFrame
-        patient_count_df = pd.read_csv(latest_csv_file)
-    else:
-        csv_file_path = "filter/patient_count.csv"
-        patient_count_df = pd.read_csv(csv_file_path)
-        
-    # Define the base selection of columns
-    columns_to_select = [
-        "QUANTITY", "ITEMS", "TOTAL_QUANTITY","NIC","ACTUAL_COST"
-    ]
+    global prescriptions_df
+    patient_count_df = param.getPatientCount_from_filter()
+    
     filter_columns_to_select = []
     grouping_columns_cnt = 4
 
@@ -941,6 +650,8 @@ def get_Surgery_month(param):
     if param.selected_Surgery != "Select":
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
     if param.selected_ChemicalSub != "Select":
+        filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
+        grouping_columns_cnt += 1
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
     if param.selected_Medication != "Select":
         filter_columns_to_select = filter_columns_to_select + ["medication"]
@@ -955,41 +666,22 @@ def get_Surgery_month(param):
     
     base_query = base_query.groupby(groupby_columns).agg({
         'QUANTITY': 'sum',
-        'ITEMS': ['sum', 'count'],
+        'ITEMS': 'sum',
         'TOTAL_QUANTITY': 'sum',
         'NIC': 'sum',
         'ACTUAL_COST': 'sum',
     }).reset_index()
     
-    base_query.columns = ['_'.join(col).strip('_') for col in base_query.columns]
+    base_query = pd.merge(base_query,patient_count_df, on=['PRACTICE_CODE', 'year', 'month'], how='inner')
     
     # Rename the columns
-    base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:]]
-    
-
-    # Calculate the total number of records
-    total_records = len(base_query)
-
-    # Calculate the total pages
-    total_pages = (total_records + param.page_size - 1) // param.page_size
-
-    # Calculate the offset based on page_number and page_size
-    offset = (param.page_number - 1) * param.page_size
-    
-    #eporting file to csv/pdf
-    result = param.exportFileCsvPdf(base_query,offset)
-    
-    # Extracting columns and filtered data
-    columns = base_query.columns.tolist()
-    headers = [col.replace('_', ' ').upper() for col in columns]
-    filtered_data = result.to_dict(orient='records')
-
-    return headers, columns, filtered_data , total_pages, param.page_number
-
+    base_query.columns = groupby_columns + [f'{col}' for col in base_query.columns[grouping_columns_cnt:] ]
+    return base_query, base_query.columns.tolist()
 
 # Define routes and views
 @app.route('/', methods=['GET'])
 def home():
+    global prescriptions_df
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         selected_value = request.args.get('selectedValue')
         selected_year = request.args.get('selectedYear')
@@ -1002,41 +694,32 @@ def home():
         page_size = int(request.args.get('page_size', 10))
         exportFile = request.args.get('exportFile')
         
-        param = NHSParam(selected_year, selected_month,selected_Surgery, selected_ChemicalSub, selected_Medication, selected_Formation, page_number, page_size,exportFile)
+        param = NHSParam(selected_value, selected_year, selected_month,selected_Surgery, selected_ChemicalSub, selected_Medication, selected_Formation, page_number, page_size,exportFile)
         
         total_pages = 1
         columns = [] 
         filtered_data = [] 
-        current_page = 1
+        current_page = page_number
+            
+        base_query, columns_to_select = chooseFunction(param)
 
-        # Fetch dynamic columns and data based on the selected value
-        if selected_value == "1" :
-            headers, columns, filtered_data, total_pages, current_page = get_all_data(param)
-        elif selected_value == "2" :
-            headers, columns, filtered_data, total_pages, current_page = get_bnf_descriptions(param)
-        elif selected_value == "3" :
-            headers, columns, filtered_data, total_pages, current_page = get_BNF_CHAPTER_PLUS_CODE(param)
-        elif selected_value == "4" :
-            headers, columns, filtered_data, total_pages, current_page = get_MEDICATION_Name(param)
-        elif selected_value == "5" :
-            headers, columns, filtered_data, total_pages, current_page = get_Formation(param)
-        elif selected_value == "6" :
-            headers, columns, filtered_data, total_pages, current_page = get_CHEMICAL_SUB(param)
-        elif selected_value == "7" :
-            headers, columns, filtered_data, total_pages, current_page = get_SurgeryPatient(param)
-        elif selected_value == "8" :
-            headers, columns, filtered_data, total_pages, current_page = get_ItemsVsPatient(param)
-        elif selected_value == "9" :
-            headers, columns, filtered_data, total_pages, current_page = get_FormationVsPatient(param)
-        elif selected_value == "10" :
-            headers, columns, filtered_data, total_pages, current_page = get_DosageWithFormation(param)
-        elif selected_value == "11" :
-            headers, columns, filtered_data, total_pages, current_page = get_Surgery(param)
-        elif selected_value == "12" :
-            headers, columns, filtered_data, total_pages, current_page = get_Surgery_year(param)
-        elif selected_value == "13" :
-            headers, columns, filtered_data, total_pages, current_page = get_Surgery_month(param)
+        # Calculate the total number of records
+        total_records = len(base_query)
 
+        # Calculate the total pages
+        total_pages = (total_records + param.page_size - 1) // param.page_size
+
+        # Calculate the offset based on page_number and page_size
+        offset = (param.page_number - 1) * param.page_size
+
+        # #eporting file to csv/pdf
+        # result = param.exportFileCsvPdf(base_query,offset)
+        result = base_query.iloc[offset: offset + param.page_size]
+        # Extracting columns and filtered data
+        columns = columns_to_select
+        headers = [col.replace('_', ' ').upper() for col in columns]
+        filtered_data = result.to_dict(orient='records')
+        
         # Calculate prev_page_number and next_page_number
         prev_page_number = max(1, page_number - 1)
         next_page_number = min(total_pages, page_number + 1)
@@ -1053,6 +736,29 @@ def home():
         }
         return jsonify({'response': response, 'all_data_param': all_data_param})
     else:
+        data_folder = "data"
+        file_prefix = "output_"
+        csv_files = glob.glob(os.path.join(data_folder, f"{file_prefix}*.csv"))
+        if csv_files:
+            # Extract modification times for each file
+            file_modification_times = [(f, os.path.getmtime(f)) for f in csv_files]
+
+            # Sort files by modification time and get the latest one
+            latest_csv_file, _ = max(file_modification_times, key=lambda x: x[1])
+
+            # Read the CSV file into a Pandas DataFrame
+            prescriptions_df = pd.read_csv(latest_csv_file)
+        else:
+            csv_file_path = "data/nhs.csv"
+            prescriptions_df = pd.read_csv(csv_file_path)
+            
+        
+        prescriptions_df['formation'] = prescriptions_df['BNF_DESCRIPTION'].apply(categorize_formation)
+        prescriptions_df['YEAR_MONTH'] = pd.to_datetime(prescriptions_df['YEAR_MONTH'], format='%Y%m')
+        prescriptions_df['year'] = prescriptions_df['YEAR_MONTH'].dt.year
+        prescriptions_df['month'] = prescriptions_df['YEAR_MONTH'].dt.month
+        prescriptions_df[['medication', 'dosage']] = prescriptions_df['BNF_DESCRIPTION'].apply(extract_medication_and_dosage)
+
         csv_file_path_BNF_DESCR = 'filter/vitamind.csv' 
         csv_data_BNF_DESCR = pd.read_csv(csv_file_path_BNF_DESCR)
         CHEMICAL_SUBSTANCE_BNF_DESCR = csv_data_BNF_DESCR['CHEMICAL_SUBSTANCE_BNF_DESCR'].astype(str).unique()
@@ -1067,10 +773,116 @@ def home():
 
         return render_template('index.html', medications=medications, CHEMICAL_SUBSTANCE_BNF_DESCR=CHEMICAL_SUBSTANCE_BNF_DESCR, PRACTICE_NAMES=PRACTICE_NAMES, practice_name_code_mapping=practice_name_code_mapping )
 
+def chooseFunction(param):
+    if param.selected_value == "1" :
+        base_query, columns_to_select = get_all_data(param)
+    elif param.selected_value == "2" :
+        base_query, columns_to_select = get_bnf_descriptions(param)
+    elif param.selected_value == "3" :
+        base_query, columns_to_select = get_BNF_CHAPTER_PLUS_CODE(param)
+    elif param.selected_value == "4" :
+        base_query, columns_to_select = get_MEDICATION_Name(param)
+    elif param.selected_value == "5" :
+        base_query, columns_to_select = get_Formation(param)
+    elif param.selected_value == "6" :
+        base_query, columns_to_select = get_CHEMICAL_SUB(param)
+    elif param.selected_value == "7" :
+        base_query, columns_to_select = get_SurgeryPatient(param)
+    elif param.selected_value == "8" :
+        base_query, columns_to_select = get_ItemsVsPatient(param)
+    elif param.selected_value == "9" :
+        base_query, columns_to_select = get_FormationVsPatient(param)
+    elif param.selected_value == "10" :
+        base_query, columns_to_select = get_DosageWithFormation(param)
+    elif param.selected_value == "11" :
+        base_query, columns_to_select = get_Surgery(param)
+    elif param.selected_value == "12" :
+        base_query, columns_to_select = get_Surgery_year(param)
+    elif param.selected_value == "13" :
+        base_query, columns_to_select = get_Surgery_month(param)
+    return base_query, columns_to_select
+
 @app.route('/extractData', methods=['GET'])
 def extractData():
     result = fetch_and_process_data()
     return jsonify(result) 
+
+@app.route('/download_csv_pdf')
+def download_csv_pdf():
+    # if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    selected_value = request.args.get('selectedValue')
+    selected_year = request.args.get('selectedYear')
+    selected_month = request.args.get('selectedMonth')
+    selected_Surgery = request.args.get('selectedSurgery')
+    selected_ChemicalSub = request.args.get('selectedChemicalSub')
+    selected_Medication = request.args.get('selectedMedication')
+    selected_Formation = request.args.get('selectedFormation')
+    page_number = int(request.args.get('page_number', 1))
+    page_size = int(request.args.get('page_size', 10))
+    exportFile = request.args.get('exportFile')
+    
+    param = NHSParam(selected_value, selected_year, selected_month,selected_Surgery, selected_ChemicalSub, selected_Medication, selected_Formation, page_number, page_size,exportFile)
+    if(exportFile=='csv'):
+        return download_csv(param)
+    else:
+        return download_pdf(param)
+    
+def download_csv(param):
+    # Generate CSV file
+    csv_data = generate_csv(param)
+
+    # Save CSV file on the server
+    csv_filename = 'prescriptions.csv'
+    with open(csv_filename, 'w', newline='') as csv_file:
+        csv_file.write(csv_data)
+
+    # Return the CSV file to the client for download
+    return send_file(csv_filename, as_attachment=True)
+
+def download_pdf(param):
+    # Generate and save PDF file
+    generate_pdf(param)
+
+    # Return the PDF file to the client for download
+    return send_file('prescriptions.pdf', as_attachment=True)
+
+def generate_csv(param):
+    base_query, columns_to_select = chooseFunction(param)
+    selected_rows = base_query
+    csv_string = selected_rows.to_csv(index=False)
+    return csv_string
+
+def generate_pdf(param):
+    base_query, columns_to_select = chooseFunction(param)
+    selected_rows = base_query
+    pdf_file_path = 'prescriptions.pdf'
+
+    column_count = selected_rows.shape[1]
+    pdf_size = (
+        landscape(A1) if column_count >= 11 else
+        landscape(A3) if column_count >= 8 else
+        landscape(letter) if column_count == 7 else
+        letter
+    )
+
+    pdf = SimpleDocTemplate(pdf_file_path, pagesize=pdf_size)
+    
+    data = [selected_rows.columns.tolist()] + selected_rows.values.tolist()
+    table = Table(data, repeatRows=1)
+    
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ])
+    
+    table.setStyle(style)
+
+    pdf.build([table])
 
 if __name__ == '__main__':
     app.run(debug=True, threaded=False)
