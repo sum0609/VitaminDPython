@@ -405,7 +405,7 @@ def get_ItemsVsPatient(param):
     if param.selected_ChemicalSub != "":
         filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
         grouping_columns_cnt += 1
-        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(selected_ChemicalSub, case=False, na=False)]
+        base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
     if param.selected_Medication != "Select":
         filter_columns_to_select = filter_columns_to_select + ["medication"]
         grouping_columns_cnt += 1
