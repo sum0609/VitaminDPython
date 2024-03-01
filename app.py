@@ -402,7 +402,7 @@ def get_ItemsVsPatient(param):
         base_query = base_query[base_query['month'] == int(param.selected_month)]
     if param.selected_Surgery != "Select":
         base_query = base_query[(base_query['PRACTICE_NAME'].str.contains(param.selected_Surgery, case=False, na=False)) | (base_query['PRACTICE_CODE'].str.contains(param.selected_Surgery, case=False, na=False))]
-    if param.selected_ChemicalSub != "":
+    if param.selected_ChemicalSub != "Select":
         filter_columns_to_select = filter_columns_to_select + ["CHEMICAL_SUBSTANCE_BNF_DESCR"]
         grouping_columns_cnt += 1
         base_query = base_query[base_query['CHEMICAL_SUBSTANCE_BNF_DESCR'].str.contains(param.selected_ChemicalSub, case=False, na=False)]
@@ -809,6 +809,8 @@ def extractData():
 
 @app.route('/download_csv_pdf')
 def download_csv_pdf():
+    
+    print('download_csv_pdf called')
     # if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
     selected_value = request.args.get('selectedValue')
     selected_year = request.args.get('selectedYear')
@@ -828,6 +830,7 @@ def download_csv_pdf():
         return download_pdf(param)
     
 def download_csv(param):
+    print('download_csv called')
     # Generate CSV file
     csv_data = generate_csv(param)
 
@@ -847,6 +850,7 @@ def download_pdf(param):
     return send_file('prescriptions.pdf', as_attachment=True)
 
 def generate_csv(param):
+    print('generate_csv called')
     base_query, columns_to_select = chooseFunction(param)
     selected_rows = base_query
     csv_string = selected_rows.to_csv(index=False)
